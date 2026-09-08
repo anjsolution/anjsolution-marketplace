@@ -49,8 +49,19 @@ def test_normalize_notice_keys_and_passthrough():
     assert "g2b" not in row["딥링크"] and "part=" not in row["딥링크"]
     assert "..." not in row["딥링크"]
     assert nz.build_notice_deeplink({**ITEM, "noti_cont_id": None}) == ""   # 5개 필수 중 하나라도 없으면 링크 없음
+    assert row["결과딥링크"].startswith("https://ebid.ex.co.kr/default.do?menuId=NPRO12002&noti_id=NID")  # UB(낙찰) → 결과 딥링크 있음
     assert row["noti_view_cnt"] == 12          # passthrough
     assert "sys_id" not in row                 # 제외필드
+
+
+def test_build_result_deeplink_always_when_ids_present():
+    """결과 딥링크는 상태와 무관하게 항상 만든다 — 상태별로 002 화면에 뭐가 보이는지는 아직
+    전 상태 검증이 안 끝나서(2026-09-08), 링크 생성 자체를 상태로 가르지 않기로 했다
+    (일부만 막으면 검증 안 된 나머지도 막은 것처럼 보여 혼동을 준다)."""
+    for cls in ("CT", "SV", "MT"):
+        link = nz.build_result_deeplink({**ITEM, "noti_cls": cls})
+        assert link.startswith(f"https://ebid.ex.co.kr/default.do?menuId={nz.RESULT_DEEPLINK_MENU[cls]}"), cls
+    assert nz.build_result_deeplink({**ITEM, "noti_cont_id": None}) == ""  # 5개 필수 파라미터는 공고 딥링크와 동일하게 적용
 
 
 def test_prog_sts_unknown_code_passes_through():
@@ -91,8 +102,9 @@ def test_render_notice_markdown():
     n = nz.normalize_notice({**ITEM, "noti_nm": "[긴급]교통관리시스템 용역"}, {"CTA": "일반경쟁"})
     md = nz.render_notice_markdown([n], keyword="ITS", period_label="1년")
     assert "### [용역] 'ITS' 검색 결과 (1년, 1건)" in md
-    assert "| 공고번호 | 지역 | 공고명 | 설계금액 | 계약방법 | 공고일 | 상태 |" in md
+    assert "| 공고번호 | 지역 | 공고명(공고링크) | 설계금액 | 계약방법 | 공고일 | 상태(결과링크) |" in md
     assert "[\[긴급\]교통관리시스템 용역](https://ebid.ex.co.kr/default.do?menuId=NPRO12001" in md
+    assert "[낙찰](https://ebid.ex.co.kr/default.do?menuId=NPRO12002" in md  # UB(낙찰) → 상태에 결과 딥링크
     assert "[공사]" not in md  # 빈 유형은 표를 만들지 않는다
     assert "[계약]" not in md
 
@@ -315,13 +327,14 @@ def test_search_clis_import_cleanly():
 
 
 def test_render_notice_markdown_compact():
-    """요약본은 공고일·공고번호·공고명 세 열. 유형 제목은 남긴다(열에서 유형을 뺐으므로)."""
+    """요약본은 공고일·공고번호·공고명·상태 네 열. 유형 제목은 남긴다(열에서 유형을 뺐으므로)."""
     md = nz.render_notice_markdown_compact([nz.normalize_notice(ITEM)], keyword="ITS", period_label="1년")
-    assert "| 공고일 | 공고번호 | 공고명 |" in md
-    for gone in ("설계금액", "계약방법", "지역", "상태"):
+    assert "| 공고일 | 공고번호 | 공고명(공고링크) | 상태(결과링크) |" in md
+    for gone in ("설계금액", "계약방법", "지역"):
         assert gone not in md, gone
     assert "### [용역]" in md                      # 유형 제목은 유지
-    assert "https://ebid.ex.co.kr/default.do" in md  # 딥링크는 남긴다
+    assert "https://ebid.ex.co.kr/default.do?menuId=NPRO12001" in md  # 공고명 = 공고 딥링크
+    assert "https://ebid.ex.co.kr/default.do?menuId=NPRO12002" in md  # 상태(낙찰) = 결과 딥링크
 
 
 def test_build_result_filename_variant_and_stamp():
@@ -369,3 +382,47 @@ def test_highlight_applies_to_contract_and_html():
     plain = nz.render_notice_html([notice], keyword="", period_label="1년")
     assert "<strong>" not in plain                           # 키워드 없으면 강조 없음
 
+
+
+PQSTD = {
+    "biz_nm": "광암터널(판교방향) 도로열선시스템 구매(설치포함)",
+    "spec_id": "04b9337a-d542-42b9-bc60-98b8ac845bbd",
+    "strgyarea": "02", "cls": "MT", "emp_nm": "이승표", "emp_no": "21834124",
+    "view_cnt": 4, "g2b_snd_yn": "Y", "start_date": "2026-09-08T01:10:00.000+00:00",
+}
+
+
+def test_normalize_pqstd_keys_and_deeplink():
+    row = nz.normalize_pqstd(PQSTD)
+    assert row["구분"] == "사전공개" and row["발주유형"] == "물품"
+    assert row["사업명"] == PQSTD["biz_nm"]
+    assert row["기관권역"] == "서울경기본부"
+    # 목록 응답의 start_date 는 UTC — KST(+9h)로 바꿔야 화면의 공개일과 맞는다(01:10Z = 10:10 KST)
+    assert row["공개일"] == "2026-09-08"
+    # 공고와 달리 spec_id 하나로 열린다 (2026-09-08 실클릭 확인)
+    assert row["딥링크"] == ("https://ebid.ex.co.kr/default.do?menuId=NPRO13003"
+                          "&spec_id=04b9337a-d542-42b9-bc60-98b8ac845bbd")
+    assert row["view_cnt"] == 4                       # passthrough
+    assert "예산액" not in row                         # 목록 API 에 없다 — 상세 호출 없이는 못 낸다
+
+
+def test_pqstd_area_code_09_is_chungbuk():
+    """사전공개는 충북본부를 09 로 쓴다 — 공고(0A)와 다르다. 근거는 ebid-필드사전.md."""
+    assert nz.normalize_pqstd({**PQSTD, "strgyarea": "09"})["기관권역"] == "충북본부"
+    assert nz.normalize_pqstd({**PQSTD, "strgyarea": "0A"})["기관권역"] == "충북본부"
+    assert nz.normalize_notice({**ITEM, "area": "0A"})["지역"] == "충북본부"
+    assert nz.normalize_pqstd({**PQSTD, "strgyarea": "ZZ"})["기관권역"] == "ZZ"  # 미매핑은 코드 그대로
+
+
+def test_pqstd_deeplink_needs_spec_id_and_known_cls():
+    assert nz.build_pqstd_deeplink({**PQSTD, "spec_id": None}) == ""
+    assert nz.build_pqstd_deeplink({**PQSTD, "cls": "CT"}) == ""   # 공사는 사전공개가 없다
+
+
+def test_render_pqstd_markdown():
+    md = nz.render_pqstd_markdown([nz.normalize_pqstd(PQSTD)], keyword="도로열선", period_label="3개월")
+    assert "### [사전공개-물품] '도로열선' 검색 결과 (3개월, 1건)" in md
+    assert "| 사업명(사전공개링크) | 기관권역 | 공개일 |" in md
+    assert "**도로열선**" in md                                    # 키워드 강조는 공고 표와 동일
+    assert "menuId=NPRO13003&spec_id=" in md
+    assert nz.render_pqstd_markdown([], keyword="x", period_label="3개월") == ""  # 없으면 섹션 자체가 없다

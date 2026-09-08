@@ -30,6 +30,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 import json
+from datetime import datetime
 from typing import Any
 
 from _ebid.client import EbidClient
@@ -136,21 +137,32 @@ def main(argv: list[str] | None = None) -> int:
     # 기간은 기본값이든 지정이든 항상 실제 날짜 범위로 낸다 — "1년" 이라고만 쓰면 언제 기준인지
     # 알 수 없고, 답변에 날짜를 붙이려면 모델이 따로 계산해야 한다(그만큼 답변이 늦어진다).
     out_path = args.out
+    stamp = f"{datetime.now():%Y%m%d-%H%M}"   # md 와 JSON 이 같은 시각을 공유해 짝이 맞는다
     if not out_path and args.out_dir:
         fmt = "html" if args.html else ("md" if args.md else "json")
-        out_path = str(Path(args.out_dir) / build_result_filename("계약", args.keyword, fmt))
+        out_path = str(Path(args.out_dir) / build_result_filename("계약", args.keyword, fmt, stamp=stamp))
     period = (f"{from_date[:4]}-{from_date[4:6]}-{from_date[6:]}"
               f"~{to_date[:4]}-{to_date[4:6]}-{to_date[6:]}")
+    # 공고 검색과 같은 규칙 — 원본 데이터를 항상 남겨 ebid_filter.py 로 재검색 없이 추릴 수 있게 한다.
+    # `상세` 는 필터가 같은 열 구성으로 렌더링하려면 알아야 한다(--detail 이면 열이 달라진다).
+    payload = {
+        "검색": {"키워드": args.keyword, "기간": period, "유형": args.types or [],
+                 "시각": stamp, "상세": bool(args.detail)},
+        "계약": rows,
+    }
+    if args.out_dir and not args.out:
+        data_path = str(Path(args.out_dir) / build_result_filename("검색계약", args.keyword, "json", stamp=stamp))
+        write_output(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", data_path, link_label="원본 데이터")
     if args.md:
         write_output(render_contract_markdown(rows, keyword=args.keyword, period_label=period,
-                                              detail=args.detail), out_path)
+                                              detail=args.detail), out_path, link_label="목록")
     elif args.html:
         write_output(render_contract_html(rows, keyword=args.keyword, period_label=period,
                                           detail=args.detail), out_path)
     elif args.table:
         print_table(rows)
-    else:
-        write_output(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", args.out)
+    elif not (args.out_dir and not args.out):   # JSON 은 위에서 이미 저장했다 — 중복 출력 방지
+        write_output(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", args.out)
     print(f"[ebid] keyword={args.keyword!r} types={args.types or '전체'} range={from_date}~{to_date} "
           f"count={len(rows)} detail={'on' if args.detail else 'off'} page={CONTRACT_PAGE_URL}",
           file=sys.stderr)
