@@ -25,12 +25,34 @@ CPT_TERMS_LABELS: dict[str, str] = CODES["계약방법"]
 AREA_LABELS: dict[str, str] = CODES["지역"]
 NOTICE_CONSTANT_FIELDS: set[str] = set(CODES["제외필드"])
 DEEPLINK_MENU: dict[str, str] = CODES["딥링크메뉴"]
+RESULT_DEEPLINK_MENU: dict[str, str] = CODES["결과딥링크메뉴"]
 
 
 def build_notice_deeplink(item: dict[str, Any]) -> str:
     """공고 화면(em-sp-bid-noti-*)이 상세로 직행하는 조건은 noti_id·noti_cont_id·noti_no·bid_no·bid_rev
     5개 전부 — 하나라도 빠지면 조용히 목록 화면. g2b/part/remicon 은 화면이 읽지 않아 뺐다(2026-08-30 실측)."""
     menu_id = DEEPLINK_MENU.get(item.get("noti_cls") or "")
+    if not menu_id or not item.get("noti_id") or not item.get("noti_cont_id"):
+        return ""
+    return (f"{BASE_URL}/default.do?menuId={menu_id}"
+            f"&noti_id={item.get('noti_id')}&noti_cont_id={item.get('noti_cont_id')}"
+            f"&noti_no={item.get('noti_no')}&bid_no={item.get('bid_no') or 1}"
+            f"&bid_rev={item.get('bid_rev') or 1}")
+
+
+def build_result_deeplink(item: dict[str, Any]) -> str:
+    """개찰결과 화면(menuId 끝자리 001→002)으로 가는 딥링크. 5개 필수 파라미터는 공고 딥링크와 동일 —
+    화면(menuId)만 결과 계열로 바꾼다. 링크 조립 자체는 상태와 무관하게 항상 가능하다(noti_id 등은
+    공고 등록 시점에 이미 부여됨) — 상태별로 실제 뭐가 보이는지는 사용자 실측(2026-09-08) 기록만
+    남겨둔다. 상태에 따라 링크 자체를 만들지 말지는 나누지 않는다.
+
+    - 낙찰/유찰: 002가 001보다 유효(낙찰자·낙찰률 등은 002에만 있음).
+    - 취소공고: 001·002 둘 다 "현재 유효하지 않은 공고"로 뜨고, 취소사유는 001 하단에만 나옴.
+      002 쪽 공고번호에는 `-1` 같은 접미번호가 붙는다(내부 식별자 체계 차이로 추정, 원인 미상).
+    - 재공고(개찰 전): 002도 열리지만 "본 건은 재공고된 건입니다" 안내 + 이전 차수 참가업체
+      정보가 섞여 나올 수 있다 — 최종 결과로 오독하지 않게 주의.
+    - 공고중·개찰완료·적격심사중·협상중·정정공고중: 아직 사용자 실측 미완료(2026-09-08 기준)."""
+    menu_id = RESULT_DEEPLINK_MENU.get(item.get("noti_cls") or "")
     if not menu_id or not item.get("noti_id") or not item.get("noti_cont_id"):
         return ""
     return (f"{BASE_URL}/default.do?menuId={menu_id}"
@@ -90,6 +112,7 @@ def normalize_notice(item: dict[str, Any], cpt_labels: dict[str, str] | None = N
         "개찰일시": fmt_dt(item.get("open_dt")),
         "차수": item.get("bid_rev"),
         "딥링크": build_notice_deeplink(item),
+        "결과딥링크": build_result_deeplink(item),
     }
     consumed = {
         "noti_cls", "noti_no", "noti_nm", "area", "noti_date", "prog_sts",
@@ -247,20 +270,23 @@ def _empty_line(keyword: str, period_label: str) -> str:
 
 
 def render_notice_markdown(rows: list[dict[str, Any]], *, keyword: str, period_label: str) -> str:
-    """입찰공고 검색 결과 → 발주유형(공사·용역·물품)별 표. 공고명은 딥링크를 건 마크다운 링크."""
+    """입찰공고 검색 결과 → 발주유형(공사·용역·물품)별 표. 공고명=공고(001) 딥링크, 상태=결과(002)
+    딥링크(개찰 전·취소공고 등 결과가 없는 상태는 링크 없이 텍스트만 — build_result_deeplink 참고)."""
     out: list[str] = []
     for label in ("공사", "용역", "물품"):
         group = [r for r in rows if r.get("발주유형") == label]
         if not group:
             continue
         out.append(_table_title(label, keyword, period_label, len(group)))
-        out.append("| 공고번호 | 지역 | 공고명 | 설계금액 | 계약방법 | 공고일 | 상태 |")
+        out.append("| 공고번호 | 지역 | 공고명(공고링크) | 설계금액 | 계약방법 | 공고일 | 상태(결과링크) |")
         out.append("|---|---|---|---:|---|---|---|")
         for r in group:
             name = _highlight(_md_escape(r.get("공고명")), keyword)
             link = f"[{name}]({r['딥링크']})" if r.get("딥링크") else name
+            sts = _md_escape(r.get("상태"))
+            sts_link = f"[{sts}]({r['결과딥링크']})" if r.get("결과딥링크") else sts
             out.append(f"| {r.get('공고번호')} | {_md_escape(r.get('지역'))} | {link} | {_amount(r.get('설계금액원'))}"
-                       f" | {_md_escape(r.get('계약방법'))} | {r.get('공고일')} | {_md_escape(r.get('상태'))} |")
+                       f" | {_md_escape(r.get('계약방법'))} | {r.get('공고일')} | {sts_link} |")
         out.append("")
     if not out:
         out.append(_empty_line(keyword, period_label))
@@ -268,11 +294,12 @@ def render_notice_markdown(rows: list[dict[str, Any]], *, keyword: str, period_l
 
 
 def render_notice_markdown_compact(rows: list[dict[str, Any]], *, keyword: str, period_label: str) -> str:
-    """공고 검색 결과 → 공고일·공고번호·공고명 세 열만. 훑어보기용 요약본.
+    """공고 검색 결과 → 공고일·공고번호·공고명·상태 네 열만. 훑어보기용 요약본.
 
     상세본과 같은 데이터를 열만 줄여 다시 렌더링한다(검색은 이미 끝났으니 비용은 밀리초).
-    공고명의 딥링크는 남긴다 — 열이 아니라 링크라 폭을 차지하지 않으면서 바로 열어볼 수 있다.
-    발주유형 제목은 유지한다. 열에서 유형을 뺐으므로 제목마저 없애면 공사·물품 구분이 사라진다.
+    공고명=공고(001) 딥링크, 상태=결과(002) 딥링크 — 열이 아니라 링크라 폭을 차지하지 않으면서
+    바로 열어볼 수 있다. 발주유형 제목은 유지한다. 열에서 유형을 뺐으므로 제목마저 없애면
+    공사·물품 구분이 사라진다.
     """
     out: list[str] = []
     for label in ("공사", "용역", "물품"):
@@ -280,12 +307,14 @@ def render_notice_markdown_compact(rows: list[dict[str, Any]], *, keyword: str, 
         if not group:
             continue
         out.append(_table_title(label, keyword, period_label, len(group)))
-        out.append("| 공고일 | 공고번호 | 공고명 |")
-        out.append("|---|---|---|")
+        out.append("| 공고일 | 공고번호 | 공고명(공고링크) | 상태(결과링크) |")
+        out.append("|---|---|---|---|")
         for r in group:
             name = _highlight(_md_escape(r.get("공고명")), keyword)
             link = f"[{name}]({r['딥링크']})" if r.get("딥링크") else name
-            out.append(f"| {r.get('공고일')} | {r.get('공고번호')} | {link} |")
+            sts = _md_escape(r.get("상태"))
+            sts_link = f"[{sts}]({r['결과딥링크']})" if r.get("결과딥링크") else sts
+            out.append(f"| {r.get('공고일')} | {r.get('공고번호')} | {link} | {sts_link} |")
         out.append("")
     if not out:
         out.append(_empty_line(keyword, period_label))
@@ -367,7 +396,7 @@ def _html_table(headers: list[str], rows: list[list[str]], num_cols: set[int] = 
 
 
 def render_notice_html(rows: list[dict[str, Any]], *, keyword: str, period_label: str) -> str:
-    """입찰공고 검색 결과 → 발주유형별 HTML 표(공고명 = 딥링크 <a>)."""
+    """입찰공고 검색 결과 → 발주유형별 HTML 표(공고명 = 공고(001) 딥링크 <a>, 상태 = 결과(002) 딥링크 <a>)."""
     sections: list[str] = []
     for label in ("공사", "용역", "물품"):
         group = [r for r in rows if r.get("발주유형") == label]
@@ -377,10 +406,13 @@ def render_notice_html(rows: list[dict[str, Any]], *, keyword: str, period_label
         for r in group:
             name = _highlight_html(_esc(r.get("공고명")), keyword)
             link = f"<a href=\"{_esc(r['딥링크'])}\" target=\"_blank\" rel=\"noopener\">{name}</a>" if r.get("딥링크") else name
+            sts = _esc(r.get("상태"))
+            sts_link = (f"<a href=\"{_esc(r['결과딥링크'])}\" target=\"_blank\" rel=\"noopener\">{sts}</a>"
+                        if r.get("결과딥링크") else sts)
             body.append([_esc(r.get("공고번호")), _esc(r.get("지역")), link, _esc(_amount(r.get("설계금액원"))),
-                         _esc(r.get("계약방법")), _esc(r.get("공고일")), _esc(r.get("상태"))])
+                         _esc(r.get("계약방법")), _esc(r.get("공고일")), sts_link])
         sections.append(f"<h2>[{_esc(label)}] {len(group)}건</h2>" + _html_table(
-            ["공고번호", "지역", "공고명", "설계금액", "계약방법", "공고일", "상태"], body, num_cols={3}, nowrap_cols={0, 5}))
+            ["공고번호", "지역", "공고명(공고링크)", "설계금액", "계약방법", "공고일", "상태(결과링크)"], body, num_cols={3}, nowrap_cols={0, 5}))
     title = f"'{keyword}' 공고 검색" if keyword else "전체 공고"
     meta = f"기간 {period_label} · 총 {len(rows)}건 · 공고명 클릭 = ebid 상세 (새 탭)"
     if not sections:
