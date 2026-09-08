@@ -6,7 +6,11 @@
 실측(2026-09-08):
 - `cls` 는 필수 — 생략하거나 null 이면 200 이지만 빈 배열이 온다. 유형별로 따로 호출해야 한다.
 - `biz_nm` 을 실으면 서버가 사업명으로 필터한다(공고 검색의 `noti_nm` 과 같은 역할).
-- `usergubun: "C"` 는 화면이 항상 보내는 고정값. 비로그인(GUEST)으로도 200.
+- **`usergubun` 은 보내지 않는다.** 화면은 항상 `"C"` 를 보내는데, `biz_nm`(키워드)과 같이 실으면
+  응답이 **2.5~3.1초**로 고정 지연된다(건수·기간과 무관 — 0건도 2.5초). 빼면 **0.1~0.8초**.
+  결과는 완전히 같다: SV/MT × 키워드 5종 × 기간별 7개 조합에서 `spec_id` 집합 전부 일치
+  (0건·24건·74건·188건·288건 케이스 포함, 2026-09-08 실측). 서버가 사용자구분과 이름검색을
+  같이 받으면 비싼 경로를 타는 것으로 보이나 원인은 미상.
 - 목록 응답에 예산액은 없다 — `asgn_budget_amt` 는 상세 API(`findInfoPqstdDetail.do`)에만 있고,
   그건 건당 요청 1회가 더 든다. 목록 검색에서는 목록이 주는 것만 낸다.
 """
@@ -38,10 +42,10 @@ def fetch_pqstd_list(
     if not menu_code:
         raise ValueError(f"사전공개가 없는 발주유형입니다: {notice_class} (용역·물품만 가능)")
     csrf_header_name, csrf_token = client.ensure_csrf_token()
+    # usergubun 은 일부러 뺀다 — 화면은 "C" 를 보내지만 키워드와 같이 실으면 20배 느려진다(독스트링)
     payload: dict[str, Any] = {
         "s_write_date": from_date,
         "e_write_date": to_date,
-        "usergubun": "C",
         "cls": cls,
     }
     if keyword:
