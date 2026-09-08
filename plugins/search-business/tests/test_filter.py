@@ -56,6 +56,42 @@ def test_filter_by_other_field_and_kind(tmp_path):
     assert "사업명(사전공개링크) | 기관권역 | 공개일" in pq   # 사전공개는 사전공개 표로 렌더
 
 
+CONTRACT_JSON = {
+    "검색": {"키워드": "VMS", "기간": "2026-01-01~2026-09-08", "유형": [],
+             "시각": "20260908-2029", "상세": False},
+    "계약": [
+        {"발주유형": "물품", "연결공고번호": "202605691", "계약명": "함양울산선 부림4터널 VMS 제조구매",
+         "계약방법": "제한경쟁", "사업자번호": "1148164393", "업체명": "가나전자",
+         "계약금액원": 1926531816, "체결일": "2026-07-02", "상세": {"대표자": "홍길동"}},
+        {"발주유형": "공사", "연결공고번호": "202605940", "계약명": "광주전남 CCTV 및 VMS 설치공사",
+         "계약방법": "제한경쟁", "사업자번호": "2208164393", "업체명": "다라건설",
+         "계약금액원": 994575000, "체결일": "2026-07-10", "상세": {"대표자": "김철수"}},
+    ],
+}
+
+
+def test_filter_contracts(tmp_path):
+    """계약도 같은 도구로 추린다 — 입력은 `ebid_검색계약_*.json`."""
+    src = tmp_path / "ebid_검색계약_VMS_20260908-2029.json"
+    src.write_text(json.dumps(CONTRACT_JSON, ensure_ascii=False), encoding="utf-8")
+    assert ebid_filter.main(["--in", str(src), "--kind", "계약", "--contains", "터널",
+                             "--out-dir", str(tmp_path)]) == 0
+    text = (tmp_path / "ebid_계약_VMS_filter_터널_20260908-2029.md").read_text(encoding="utf-8")
+    assert "함양울산선" in text and "광주전남" not in text
+    assert "| 구분 | 공고번호 | 계약명 | 계약방법 | 사업자번호 |" in text   # 상세=False 열 구성
+
+
+def test_filter_contracts_keeps_detail_columns(tmp_path):
+    """`--detail` 로 뽑은 검색이면 필터 결과도 상세 열 구성을 유지한다(메타의 `상세` 를 따른다)."""
+    data = {**CONTRACT_JSON, "검색": {**CONTRACT_JSON["검색"], "상세": True}}
+    src = tmp_path / "ebid_검색계약_VMS_20260908-2029.json"
+    src.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    ebid_filter.main(["--in", str(src), "--kind", "계약", "--contains", "터널", "--out-dir", str(tmp_path)])
+    text = (tmp_path / "ebid_계약_VMS_filter_터널_20260908-2029.md").read_text(encoding="utf-8")
+    assert "대표자" in text and "수의근거" in text          # 상세 열이 붙는다
+    assert "사업자번호" not in text                          # 상세면 사업자번호 자리가 대표자로 바뀐다
+
+
 def test_filter_does_not_overwrite(tmp_path):
     """같은 필터를 다시 돌려도 덮어쓰지 않는다 — 검색 결과 파일 규칙과 같다."""
     src = _write(tmp_path)

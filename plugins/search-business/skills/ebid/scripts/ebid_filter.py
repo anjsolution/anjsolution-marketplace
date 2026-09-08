@@ -6,9 +6,11 @@
     python <스킬폴더>/scripts/ebid_filter.py --in <검색 json> --contains 건설 --out-dir <폴더>
     python <스킬폴더>/scripts/ebid_filter.py --in <검색 json> --field 상태 --contains 낙찰 --table
     python <스킬폴더>/scripts/ebid_filter.py --in <검색 json> --kind 사전공개 --contains 터널 --out-dir <폴더>
+    python <스킬폴더>/scripts/ebid_filter.py --in <계약 json> --kind 계약 --contains 감리 --out-dir <폴더>
 
-- 입력은 `ebid_search_common.py --out-dir` 이 함께 저장하는 `ebid_검색_*.json`.
-- 기본 검색 대상 필드는 이름 열(공고=공고명, 사전공개=사업명). `--field` 로 다른 필드도 가능.
+- 입력은 검색 도구가 `--out-dir` 과 함께 저장하는 원본 JSON — 공고·사전공개는 `ebid_검색_*.json`,
+  계약은 `ebid_검색계약_*.json`.
+- 기본 검색 대상 필드는 이름 열(공고=공고명, 사전공개=사업명, 계약=계약명). `--field` 로 다른 필드도 가능.
 - 부분일치·대소문자 무시. 결과 파일명은 원본 시각을 물려받는다(어느 검색에서 나왔는지 보이게).
 Exit: 0 성공 / 1 입력 파일 오류 / 2 인자 오류 / 3 조건에 맞는 건 없음(파일 안 만듦)
 """
@@ -27,10 +29,10 @@ import json
 from typing import Any
 
 from _ebid.errors import KoreanArgumentParser
-from _ebid.normalize import (build_result_filename, print_table, render_notice_markdown,
-                             render_notice_markdown_compact, render_pqstd_markdown, write_output)
+from _ebid.normalize import (build_result_filename, print_table, render_contract_markdown,
+                             render_notice_markdown, render_pqstd_markdown, write_output)
 
-NAME_FIELD = {"공고": "공고명", "사전공개": "사업명"}
+NAME_FIELD = {"공고": "공고명", "사전공개": "사업명", "계약": "계약명"}
 
 
 def parse_args(argv: list[str] | None = None):
@@ -38,7 +40,8 @@ def parse_args(argv: list[str] | None = None):
     parser.add_argument("--in", dest="src", required=True, help="ebid_search_common.py 가 저장한 ebid_검색_*.json")
     parser.add_argument("--contains", required=True, help="포함할 문자열 (부분일치·대소문자 무시)")
     parser.add_argument("--field", help="검색할 필드 (기본: 공고=공고명, 사전공개=사업명)")
-    parser.add_argument("--kind", choices=["공고", "사전공개"], default="공고", help="거를 대상 (기본: 공고)")
+    parser.add_argument("--kind", choices=["공고", "사전공개", "계약"], default="공고",
+                        help="거를 대상 (기본: 공고. 계약 JSON 은 `ebid_검색계약_*.json`)")
     parser.add_argument("--out-dir", dest="out_dir", help="이 폴더에 저장하고 파일명은 스크립트가 짓는다")
     parser.add_argument("--out", help="결과를 이 파일에 저장 (파일명을 직접 정할 때만)")
     parser.add_argument("--table", action="store_true", help="md 대신 사람용 표로 출력")
@@ -73,6 +76,10 @@ def main(argv: list[str] | None = None) -> int:
     # 제목만 봐도 알 수 있어야 하고, 강조(굵게)도 필터 조건에 걸리는 편이 읽기 좋다.
     if args.kind == "사전공개":
         text = render_pqstd_markdown(hits, keyword=args.contains, period_label=period)
+    elif args.kind == "계약":
+        # `--detail` 로 뽑은 검색이면 열이 더 붙는다 — 원본과 같은 열 구성으로 렌더링한다.
+        text = render_contract_markdown(hits, keyword=args.contains, period_label=period,
+                                        detail=bool(meta.get("상세")))
     else:
         text = render_notice_markdown(hits, keyword=args.contains, period_label=period)
 
