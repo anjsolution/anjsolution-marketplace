@@ -382,3 +382,47 @@ def test_highlight_applies_to_contract_and_html():
     plain = nz.render_notice_html([notice], keyword="", period_label="1년")
     assert "<strong>" not in plain                           # 키워드 없으면 강조 없음
 
+
+
+PQSTD = {
+    "biz_nm": "광암터널(판교방향) 도로열선시스템 구매(설치포함)",
+    "spec_id": "04b9337a-d542-42b9-bc60-98b8ac845bbd",
+    "strgyarea": "02", "cls": "MT", "emp_nm": "이승표", "emp_no": "21834124",
+    "view_cnt": 4, "g2b_snd_yn": "Y", "start_date": "2026-09-08T01:10:00.000+00:00",
+}
+
+
+def test_normalize_pqstd_keys_and_deeplink():
+    row = nz.normalize_pqstd(PQSTD)
+    assert row["구분"] == "사전공개" and row["발주유형"] == "물품"
+    assert row["사업명"] == PQSTD["biz_nm"]
+    assert row["기관권역"] == "서울경기본부"
+    # 목록 응답의 start_date 는 UTC — KST(+9h)로 바꿔야 화면의 공개일과 맞는다(01:10Z = 10:10 KST)
+    assert row["공개일"] == "2026-09-08"
+    # 공고와 달리 spec_id 하나로 열린다 (2026-09-08 실클릭 확인)
+    assert row["딥링크"] == ("https://ebid.ex.co.kr/default.do?menuId=NPRO13003"
+                          "&spec_id=04b9337a-d542-42b9-bc60-98b8ac845bbd")
+    assert row["view_cnt"] == 4                       # passthrough
+    assert "예산액" not in row                         # 목록 API 에 없다 — 상세 호출 없이는 못 낸다
+
+
+def test_pqstd_area_code_09_is_chungbuk():
+    """사전공개는 충북본부를 09 로 쓴다 — 공고(0A)와 다르다. 근거는 ebid-필드사전.md."""
+    assert nz.normalize_pqstd({**PQSTD, "strgyarea": "09"})["기관권역"] == "충북본부"
+    assert nz.normalize_pqstd({**PQSTD, "strgyarea": "0A"})["기관권역"] == "충북본부"
+    assert nz.normalize_notice({**ITEM, "area": "0A"})["지역"] == "충북본부"
+    assert nz.normalize_pqstd({**PQSTD, "strgyarea": "ZZ"})["기관권역"] == "ZZ"  # 미매핑은 코드 그대로
+
+
+def test_pqstd_deeplink_needs_spec_id_and_known_cls():
+    assert nz.build_pqstd_deeplink({**PQSTD, "spec_id": None}) == ""
+    assert nz.build_pqstd_deeplink({**PQSTD, "cls": "CT"}) == ""   # 공사는 사전공개가 없다
+
+
+def test_render_pqstd_markdown():
+    md = nz.render_pqstd_markdown([nz.normalize_pqstd(PQSTD)], keyword="도로열선", period_label="3개월")
+    assert "### [사전공개-물품] '도로열선' 검색 결과 (3개월, 1건)" in md
+    assert "| 사업명(사전공개링크) | 기관권역 | 공개일 |" in md
+    assert "**도로열선**" in md                                    # 키워드 강조는 공고 표와 동일
+    assert "menuId=NPRO13003&spec_id=" in md
+    assert nz.render_pqstd_markdown([], keyword="x", period_label="3개월") == ""  # 없으면 섹션 자체가 없다

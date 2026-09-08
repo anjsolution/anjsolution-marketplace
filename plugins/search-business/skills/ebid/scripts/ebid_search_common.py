@@ -32,10 +32,11 @@ from typing import Any
 
 from _ebid.client import EbidClient
 from _ebid.errors import DATE_HINT, KoreanArgumentParser, report_error
-from _ebid.normalize import (normalize_notice, print_table, render_notice_html,
-                             render_notice_markdown, render_notice_markdown_compact, write_output,
-                             build_result_filename)
+from _ebid.normalize import (normalize_notice, normalize_pqstd, print_table, render_notice_html,
+                             render_notice_markdown, render_notice_markdown_compact,
+                             render_pqstd_markdown, write_output, build_result_filename)
 from _ebid.parallel import map_parallel
+from _ebid.pqstd import PQSTD_CLASS_LABELS, fetch_pqstd_list
 from _ebid.search import NOTICE_CLASS_LABELS, STATUS_FILTER_OVERRIDE, resolve_date_window
 
 MAX_RETRIES = 2
@@ -95,19 +96,35 @@ def main(argv: list[str] | None = None) -> int:
         report_error("검색 실패", exc)
         return 1
 
-    def fetch(label: str) -> list[dict[str, Any]]:
+    # 경로는 "입찰공고 유형별" + "사전공개 유형별" 두 계열이다. 사전공개는 별도 API·별도 식별자라
+    # 옵션으로 켜고 끄지 않고 같은 검색에 얹는다 — 어차피 유형별 호출이 필요해 병렬 레인만 늘어난다.
+    # 공사는 사전공개 메뉴 자체가 없어 자동으로 빠진다.
+    notice_lanes = [("공고", label) for label in args.types]
+    pqstd_lanes = [("사전공개", label) for label in args.types if label in PQSTD_CLASS_LABELS]
+
+    def fetch(lane: tuple[str, str]) -> list[dict[str, Any]]:
+        kind, label = lane
+        if kind == "사전공개":
+            return fetch_pqstd_list(client, notice_class=PQSTD_CLASS_LABELS[label],
+                                    from_date=from_date, to_date=to_date, keyword=args.keyword)
         items, _st, _url = client.fetch_bid_notice_list(
             notice_class=NOTICE_CLASS_LABELS[label], from_noti_date=from_date,
             to_noti_date=to_date, payload_overrides=overrides)
         return items
 
-    for label, (items, exc) in zip(args.types, map_parallel(fetch, args.types)):  # 유형별 동시 조회
+    lanes = notice_lanes + pqstd_lanes
+    pq_rows: list[dict[str, Any]] = []
+    for (kind, label), (items, exc) in zip(lanes, map_parallel(fetch, lanes)):  # 경로별 동시 조회
         if exc is not None:
-            report_error(f"검색 실패({label})", exc)
+            report_error(f"검색 실패({kind} {label})", exc)
             return 1
-        rows.extend(normalize_notice(it) for it in items or [])
+        if kind == "사전공개":
+            pq_rows.extend(normalize_pqstd(it) for it in items or [])
+        else:
+            rows.extend(normalize_notice(it) for it in items or [])
 
     rows.sort(key=lambda r: r.get("공고일") or "", reverse=True)
+    pq_rows.sort(key=lambda r: r.get("공개일") or "", reverse=True)
     # 기간은 기본값이든 지정이든 항상 실제 날짜 범위로 낸다 — "1년" 이라고만 쓰면 언제 기준인지
     # 알 수 없고, 답변에 날짜를 붙이려면 모델이 따로 계산해야 한다(그만큼 답변이 늦어진다).
     out_path = args.out
@@ -117,25 +134,29 @@ def main(argv: list[str] | None = None) -> int:
         out_path = str(Path(args.out_dir) / build_result_filename("공고", args.keyword, fmt, stamp=stamp))
     period = (f"{from_date[:4]}-{from_date[4:6]}-{from_date[6:]}"
               f"~{to_date[:4]}-{to_date[4:6]}-{to_date[6:]}")
+    # 사전공개는 공고와 열이 달라 같은 표에 못 섞는다 — 공고 표 뒤에 별도 섹션으로 붙인다.
+    pq_md = render_pqstd_markdown(pq_rows, keyword=args.keyword, period_label=period)
     if args.md:
+        detail_md = render_notice_markdown(rows, keyword=args.keyword, period_label=period)
         if args.out_dir and not args.out:
             # 훑어보기용 요약본을 함께 낸다. 같은 rows 를 다시 렌더링할 뿐이라 추가 요청이 없다.
             brief = Path(args.out_dir) / build_result_filename(
                 "공고", args.keyword, "md", variant="summarize", stamp=stamp)
-            write_output(render_notice_markdown_compact(rows, keyword=args.keyword, period_label=period),
-                         str(brief), link_label="목록")
-            write_output(render_notice_markdown(rows, keyword=args.keyword, period_label=period),
-                         out_path, link_label="목록(상세)")
+            compact_md = render_notice_markdown_compact(rows, keyword=args.keyword, period_label=period)
+            write_output(compact_md + ("\n" + pq_md if pq_md else ""), str(brief), link_label="목록")
+            write_output(detail_md + ("\n" + pq_md if pq_md else ""), out_path, link_label="목록(상세)")
         else:
-            write_output(render_notice_markdown(rows, keyword=args.keyword, period_label=period), out_path)
+            write_output(detail_md + ("\n" + pq_md if pq_md else ""), out_path)
     elif args.html:
         write_output(render_notice_html(rows, keyword=args.keyword, period_label=period), out_path)
     elif args.table:
         print_table(rows)
+        if pq_rows:
+            print_table(pq_rows)
     else:
-        write_output(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", args.out)
-    print(f"[ebid] keyword={args.keyword!r} types={args.types} "
-          f"range={from_date}~{to_date} count={len(rows)}", file=sys.stderr)
+        write_output(json.dumps(rows + pq_rows, ensure_ascii=False, indent=2) + "\n", args.out)
+    print(f"[ebid] keyword={args.keyword!r} types={args.types} range={from_date}~{to_date} "
+          f"count={len(rows)} 사전공개={len(pq_rows)}", file=sys.stderr)
     return 0
 
 
