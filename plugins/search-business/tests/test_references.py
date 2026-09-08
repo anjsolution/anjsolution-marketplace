@@ -6,8 +6,14 @@ BAD = ("ebid-ttms", "stages/", "data/ebid-raw", "scripts/ebid/", "20120101",
        "종합관리", "스키마-명세", "T1", "T5", "T6", "S1", "S4", "관리동", "TTMS", "터널사전")
 
 
-def test_three_files_exist():
-    assert {p.name for p in REF.glob("*.md")} == {"ebid-필드사전.md", "문서-판독-지침.md", "소스-접근성.md"}
+def test_core_files_exist():
+    """핵심 3종이 사라지지 않았는지만 본다 — 문서를 새로 추가하는 것은 막지 않는다(부분집합 검사).
+
+    SKILL.md 에서 규칙을 덜어내 references 로 옮기는 게 정상 운영이라, 파일 목록을 정확히
+    일치시키면 문서를 추가할 때마다 테스트가 깨진다. 새 파일이 SKILL.md 에서 링크되는지는
+    test_skill_md.py 가 glob 으로 본다.
+    """
+    assert {"ebid-필드사전.md", "문서-판독-지침.md", "소스-접근성.md"} <= {p.name for p in REF.glob("*.md")}
 
 
 def test_no_project_leak():
