@@ -134,27 +134,43 @@ def main(argv: list[str] | None = None) -> int:
         out_path = str(Path(args.out_dir) / build_result_filename("공고", args.keyword, fmt, stamp=stamp))
     period = (f"{from_date[:4]}-{from_date[4:6]}-{from_date[6:]}"
               f"~{to_date[:4]}-{to_date[4:6]}-{to_date[6:]}")
-    # 사전공개는 공고와 열이 달라 같은 표에 못 섞는다 — 공고 표 뒤에 별도 섹션으로 붙인다.
+    # 원본 데이터(JSON)는 표시 형식과 무관하게 항상 남긴다 — 나중에 "OO 만 골라줘" 같은 요청을
+    # 재검색 없이 ebid_filter.py 로 처리하기 위한 입력이다. 이미 메모리에 있는 rows 를 쓰는 것뿐이라
+    # 추가 요청이 없다. 검색 조건도 같이 담는다 — 없으면 필터 결과의 표 제목을 재현할 수 없다.
+    payload = {
+        "검색": {"키워드": args.keyword, "기간": period, "유형": args.types, "시각": stamp},
+        "공고": rows,
+        "사전공개": pq_rows,
+    }
+    if args.out_dir and not args.out:
+        data_path = str(Path(args.out_dir) / build_result_filename("검색", args.keyword, "json", stamp=stamp))
+        write_output(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", data_path, link_label="원본 데이터")
+    # 사전공개는 공고와 열이 달라 같은 표에 못 섞는다 — 파일 자체를 나눈다.
     pq_md = render_pqstd_markdown(pq_rows, keyword=args.keyword, period_label=period)
     if args.md:
-        detail_md = render_notice_markdown(rows, keyword=args.keyword, period_label=period)
         if args.out_dir and not args.out:
             # 훑어보기용 요약본을 함께 낸다. 같은 rows 를 다시 렌더링할 뿐이라 추가 요청이 없다.
             brief = Path(args.out_dir) / build_result_filename(
                 "공고", args.keyword, "md", variant="summarize", stamp=stamp)
-            compact_md = render_notice_markdown_compact(rows, keyword=args.keyword, period_label=period)
-            write_output(compact_md + ("\n" + pq_md if pq_md else ""), str(brief), link_label="목록")
-            write_output(detail_md + ("\n" + pq_md if pq_md else ""), out_path, link_label="목록(상세)")
+            write_output(render_notice_markdown_compact(rows, keyword=args.keyword, period_label=period),
+                         str(brief), link_label="목록")
+            write_output(render_notice_markdown(rows, keyword=args.keyword, period_label=period),
+                         out_path, link_label="목록(상세)")
+            if pq_md:
+                pq_path = str(Path(args.out_dir) / build_result_filename(
+                    "사전공개", args.keyword, "md", stamp=stamp))
+                write_output(pq_md, pq_path, link_label="사전공개")
         else:
-            write_output(detail_md + ("\n" + pq_md if pq_md else ""), out_path)
+            write_output(render_notice_markdown(rows, keyword=args.keyword, period_label=period)
+                         + ("\n" + pq_md if pq_md else ""), out_path)
     elif args.html:
         write_output(render_notice_html(rows, keyword=args.keyword, period_label=period), out_path)
     elif args.table:
         print_table(rows)
         if pq_rows:
             print_table(pq_rows)
-    else:
-        write_output(json.dumps(rows + pq_rows, ensure_ascii=False, indent=2) + "\n", args.out)
+    elif not (args.out_dir and not args.out):   # JSON 은 위에서 이미 저장했다 — 중복 출력 방지
+        write_output(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", args.out)
     print(f"[ebid] keyword={args.keyword!r} types={args.types} range={from_date}~{to_date} "
           f"count={len(rows)} 사전공개={len(pq_rows)}", file=sys.stderr)
     return 0
