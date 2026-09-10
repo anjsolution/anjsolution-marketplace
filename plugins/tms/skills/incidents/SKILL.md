@@ -5,18 +5,21 @@ description: TMS 장애 이력을 찾거나 분석할 때 쓴다. 트리거 — 
 
 # incidents — 장애 이력 분석
 
-## 찾고 센다
-`search_incidents` 로 찾고 `incident_stats` 로 센다.
+## 검색과 분석
+`search_incidents` 로 장애를 검색하고 `incident_stats` 로 장애 데이터의 통계를 확인할 수 있다.
 `group_by` 는 month·category·status·highway·division·branch·tunnel ·
 location·device_category·controller_sub_type · access·method.
-`keyword` 는 메모와 대응 내용을 검색하며, `총건수` 만 봐도 빈도를 알 수 있다.
+`keyword` 는 장애 메모·장애코드, 대응 이력 본문, 조치 원인·비고·메모를 함께 검색한다.
+조치 경위나 후속 조치는 원인·비고에만 적히는 일이 많다. `총건수` 만 봐도 빈도를 알 수 있다.
 
 코드성 필터(`category`·`location`·`device_category`·`controller_sub_type`·`access`·`method`)는 응답에 나온
 라벨을 그대로 넣어도 되고 한글만·코드만·enum 도 받는다 — `하드웨어 (H)` `하드웨어` `H`
 `HARDWARE` 가 모두 같다. 해석 못 하면 **어느 항목인지 밝히고 유효값을 알려주는** 오류가 온다.
 
 `incident_stats` 를 쓸 때:
-- 기간을 둘 다 생략하면 **전체 기간이 아니라 올해**다
+- 기간을 생략하면 **전체 기간**을 집계한다
+- 응답의 `기간` 은 실제로 집계된 장애의 접수일 범위다. 결과를 소개할 때 이 기간을 함께
+  밝힌다 — 데이터가 언제부터 있는지도 여기서 알 수 있다. 대상이 없으면 `null` 이다
 - **그룹 합계가 전체 장애 건수보다 클 수 있다.** 한 장애의 대상이 여러 터널에 걸치고
   그 터널들이 서로 다른 지사·본부일 수 있어서, `tunnel`·`branch`·`division`·`highway` 로
   묶으면 같은 장애가 그룹마다 각각 잡힌다. 합계를 "전체 장애 수" 로 소개하지 않는다.
@@ -30,7 +33,7 @@ location·device_category·controller_sub_type · access·method.
   `incident_stats(group_by=division, method=교체 (C), access=현장 (C))`
 - "이번 달 현장 나간 장애 목록" → `search_incidents(access=현장 (C), from=…, to=…)`
 
-## 그 밖의 축은 받아서 센다
+## 필터 검색으로 충분하지 않은 경우 분석 방법
 대응자·소요시간, 그리고 조치 `대상`·`유형` 은 아직 `group_by` 에 없다.
 데이터를 받아 직접 집계한다.
 
