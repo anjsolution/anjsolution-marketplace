@@ -1,6 +1,6 @@
 {
   "name": "search-business",
-  "version": "0.1.3",
+  "version": "0.1.2",
   "description": "한국도로공사 ebid 에서 입찰 공고, 계약 등의 정보를 검색 및 공고별 첨부 파일 수집",
   "author": {
     "name": "Ai-Ops",

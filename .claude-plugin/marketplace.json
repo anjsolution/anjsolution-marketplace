@@ -10,14 +10,9 @@
   "plugins": [
     {
       "name": "search-business",
-      "displayName": "ANJ 사업 검색",
-      "author": {
-        "name": "Ai-Ops",
-        "email": "khchoi@anjsol.co.kr"
-      },
       "source": "./plugins/search-business",
       "description": "한국도로공사 ebid 에서 입찰 공고, 계약 등의 정보를 검색 및 공고별 첨부 파일 수집",
-      "version": "0.1.3",
+      "version": "0.1.2",
       "keywords": [
         "ebid",
         "한국도로공사",
@@ -31,14 +26,9 @@
     },
     {
       "name": "tms",
-      "displayName": "ANJ 터널 운영",
-      "author": {
-        "name": "Ai-Ops",
-        "email": "khchoi@anjsol.co.kr"
-      },
       "source": "./plugins/tms",
       "description": "터널관리시스템(TMS) 운영 데이터 조회 — 터널·조직 카탈로그 해석과 장애 이력 검색·집계",
-      "version": "0.1.1",
+      "version": "0.1.0",
       "keywords": [
         "tms",
         "ttms",

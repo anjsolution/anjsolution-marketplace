@@ -1,6 +1,6 @@
 {
   "name": "tms",
-  "version": "0.1.1",
+  "version": "0.1.0",
   "description": "터널관리시스템(TMS) 운영 데이터 조회 — 터널·조직 카탈로그 해석과 장애 이력 검색·집계",
   "author": {
     "name": "Ai-Ops",
