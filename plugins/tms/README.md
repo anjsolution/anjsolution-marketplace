@@ -1,0 +1,68 @@
+# tms
+
+터널관리시스템(TMS)의 운영 데이터를 Claude Code / Codex 에서 조회하고 신규 장애를 등록하는 플러그인입니다.
+사내 MCP 서버(`tms-mcp`)에 연결해 **터널·조직 카탈로그**와 **장애 이력**을 다룹니다.
+
+## 설치
+
+마켓플레이스를 먼저 등록해야 합니다. 터미널에서 (기본 `--scope user` = 전역 설치):
+
+```
+claude plugin marketplace add anjsolution/plugins
+claude plugin install tms@anjsolution
+```
+
+세션 안에서는 `/plugin marketplace add anjsolution/plugins` 후 `/plugin install tms@anjsolution`.
+Codex 는 `codex plugin add tms@anjsolution`.
+
+설치하면 MCP 서버가 함께 등록됩니다. 첫 사용 시 브라우저가 열리며 로그인하면 연결이 끝납니다.
+Claude Code 에서 연결 상태는 `/mcp` 로 확인합니다.
+
+## 권한
+
+MCP 서버는 사용자별 권한과 OAuth 승인 범위 안에서 도구를 제공합니다. 신규 장애 등록은
+`tms:incidents:write` 부여와 추가 OAuth 동의가 필요합니다.
+
+| 스킬 | 필요한 권한 |
+|---|---|
+| catalog | 터널·조직 마스터 조회 |
+| incidents 조회·분석 | 장애 이력 조회 |
+| incidents 신규 등록 | 장애 쓰기 (`tms:incidents:write`) |
+
+권한이 없으면 해당 도구가 목록에 나타나지 않거나 호출이 거부됩니다. **의도된 동작입니다.**
+권한 요청은 Ai-Ops 에 직접 하세요.
+
+## 안 될 때
+
+| 증상 | 원인 | 할 일 |
+|---|---|---|
+| 도구가 아예 안 보임 | 플러그인 미설치 또는 MCP 미등록 | 위 설치 명령 실행 후 `/mcp` 로 연결 확인 |
+| 인증을 요구함 (401) | 로그인 안 됨 · 토큰 만료 | `/mcp` 에서 재인증 (브라우저가 열립니다) |
+| 권한 거부 (403) | 해당 scope 미부여 | 위 표의 권한을 Ai-Ops 에 요청 |
+| `ENOTFOUND` · 연결 불가 | DNS·회선 문제 (등록 문제가 아닙니다) | 잠시 후 재시도, 계속되면 사내망 확인 |
+
+## 스킬
+
+| 스킬 | 하는 일 |
+|---|---|
+| `tms:catalog` | 터널·노선·본부/지사/관리동·업체 마스터를 로컬 캐시로 두고 이름·코드·소속을 해석 |
+| `tms:incidents` | 장애 검색·분석과 신규 장애 등록. 필요한 read/write reference만 참조 |
+
+장애 조회 응답에 소속 정보가 있으면 그대로 사용합니다. catalog는 명칭·소속을 해석하거나
+동명 대상을 구분할 때 활용합니다.
+
+## 현재 지원 범위
+
+읽기와 신규 장애 등록을 지원합니다. 대응·조치 기록의 등록, 수정·삭제는 아직 스킬 실행 범위에
+포함하지 않습니다. 자유 SQL이나 직접 DB 접근으로 대신 수행하지 않습니다.
+
+개인 연락처·서버 IP·계정 같은 민감 정보는 애초에 제공되지 않습니다.
+
+## 상태
+
+incidents는 짧은 SKILL.md와 조회·분석·쓰기 공통·신규 등록 references로 구성됩니다.
+도구 설명과 입력 스키마는 MCP가 제공하고 references는 업무 진행·복구 절차를 설명합니다.
+`incidents/scripts/generate_uuid.py`는 Python 3로 UUID 하나만 출력합니다. 저장·상태 관리는
+포함하지 않으며, 요청 기록은 쓰기 공통 문서에 따라 실행 환경의 파일 기능으로 보관합니다.
+
+TTMS 설치 처리와 대응·조치 쓰기 도구의 향후 추가는 별도로 반영합니다.
