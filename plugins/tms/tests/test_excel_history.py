@@ -126,6 +126,26 @@ def test_fix_patches_only_target_cell(workbook, capsys):
     assert set(changed) <= {"xl/workbook.xml", "xl/worksheets/sheet1.xml"}
 
 
+def test_locate_groups_numbers_by_received_date(workbook, capsys):
+    out = run(capsys, "locate", workbook, "1-4")
+    assert out["조회"] == [
+        {"from": "2026-06-22", "to": "2026-06-22", "접수번호": [1, 2]},
+        {"from": "2026-06-23", "to": "2026-06-23", "접수번호": [4]}]
+    assert out["엑셀에_없거나_접수일_없음"] == [3]
+
+
+def test_check_judges_presence_by_receipt_number(workbook, tmp_path, capsys):
+    remote = tmp_path / "bydate.json"
+    remote.write_text(json.dumps([
+        {"목록": [{"장애코드": "HL100-a", "접수번호": 1, "접수일시": "2026-06-22T09:30:00+09:00"}]},
+        {"목록": [{"장애코드": "HL100-b", "접수번호": None, "접수일시": "2026-06-23T08:48:00+09:00"}]},
+    ]), encoding="utf-8")
+    out = run(capsys, "check", workbook, "1,2,4", "--remote", remote)
+    assert out[0] == {"접수번호": 1, "판정": "있음", "장애코드": "HL100-a", "접수일시_일치": True}
+    assert out[1]["판정"] == "없음"
+    assert out[2]["판정"] == "중복 의심" and out[2]["원격_후보"] == ["HL100-b"]
+
+
 def test_method_other_is_allowed():
     assert eh.parse_action_code("OOCH") == (
         {"target": "OTHER", "method": "OTHER", "access": "ONSITE", "type": "HARDWARE"}, None)

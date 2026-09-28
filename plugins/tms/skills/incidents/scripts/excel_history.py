@@ -1,12 +1,17 @@
 """장애 history 엑셀(.xlsm/.xlsx)을 원격 TMS와 비교해 차이·특이사항을 찾고 등록용 JSON 초안을 만든다.
 
   python excel_history.py pending <엑셀> --remote 최근조회.json [--after 1944]
+  python excel_history.py locate  <엑셀> 1707 1708 1800-1805
+  python excel_history.py check   <엑셀> 1707 1708 --remote 날짜별조회.json
   python excel_history.py extract <엑셀> 1945-1950
   python excel_history.py fix     <엑셀> 1945 --action ORCH [--code HL100]
 
 pending : 원격 최근 조회(search_incidents 응답 저장본)에서 마지막 접수번호를 찾아
           그 이후 엑셀에만 있는 행, 접수번호 없는 원격 장애(중복 확인), 조회 범위 안에서
           엑셀 쪽 대응·조치가 더 많은 건을 보고한다.
+locate  : 접수번호를 엑셀 접수일별로 묶어 search_incidents from/to 조회 계획을 만든다.
+check   : 날짜별 조회 결과로 번호마다 있음·없음·중복 의심을 판정한다.
+          엑셀 접수번호 순서가 접수일 순서와 다를 수 있어 최종 존재 확인은 이 방식으로 한다.
 extract : 접수번호별 장애·대응·조치 초안. review가 비어 있어야 등록할 수 있다.
 fix     : 장애코드(D열)·조치코드(K열)를 검증 후 그 셀만 고친다. 백업을 먼저 만든다.
 
@@ -217,6 +222,43 @@ def pending(rows, remote_path, after):
     }
 
 
+def locate(rows, numbers):
+    """접수번호를 엑셀 접수일별로 묶어 search_incidents from/to 조회 계획을 만든다."""
+    by_no = {r["no"]: r for r in rows}
+    plan, missing = {}, []
+    for n in numbers:
+        received = by_no.get(n, {}).get("received")
+        if isinstance(received, datetime):
+            plan.setdefault(received.strftime("%Y-%m-%d"), []).append(n)
+        else:
+            missing.append(n)
+    return {"조회": [{"from": day, "to": day, "접수번호": nos} for day, nos in sorted(plan.items())],
+            "엑셀에_없거나_접수일_없음": missing}
+
+
+def check(rows, numbers, remote_path):
+    """날짜별 조회 결과로 접수번호마다 있음·없음·중복 의심을 판정한다."""
+    items = load_remote(remote_path)
+    if not any("접수번호" in it for it in items):
+        sys.exit("원격 조회 결과에 접수번호 필드가 없습니다.")
+    by_remote = {it["접수번호"]: it for it in items if it.get("접수번호") is not None}
+    by_no = {r["no"]: r for r in rows}
+    result = []
+    for n in numbers:
+        row = by_no.get(n)
+        at = kst(row["received"]) if row else None
+        found = by_remote.get(n)
+        if found:
+            result.append({"접수번호": n, "판정": "있음", "장애코드": found.get("장애코드"),
+                           "접수일시_일치": (found.get("접수일시") or "")[:16] == (at or "")[:16]})
+            continue
+        same = [it.get("장애코드") for it in items if it.get("접수번호") is None
+                and at and (it.get("접수일시") or "")[:16] == at[:16]]
+        result.append({"접수번호": n, "판정": "중복 의심" if same else "없음",
+                       "엑셀_접수일시": at, **({"원격_후보": same} if same else {})})
+    return result
+
+
 def summary(d):
     return {"접수번호": d["receiptNo"], "접수일시": d["incident"]["receivedAt"],
             "터널명": d["target_text"]["터널명"], "내용": (d["incident"]["memo"] or "")[:60]}
@@ -317,6 +359,13 @@ def main(argv=None):
     p.add_argument("excel")
     p.add_argument("--remote", required=True, help="search_incidents 응답 저장 JSON")
     p.add_argument("--after", type=int, help="마지막 접수번호 직접 지정")
+    p = sub.add_parser("locate", help="접수번호별 날짜 조회 계획")
+    p.add_argument("excel")
+    p.add_argument("numbers", nargs="+")
+    p = sub.add_parser("check", help="날짜별 조회 결과로 접수번호 존재 판정")
+    p.add_argument("excel")
+    p.add_argument("numbers", nargs="+")
+    p.add_argument("--remote", required=True, help="날짜별 search_incidents 응답 저장 JSON")
     p = sub.add_parser("extract", help="접수번호별 등록용 JSON 초안")
     p.add_argument("excel")
     p.add_argument("numbers", nargs="+", help="예: 1945-1950 1952 또는 1,2,3")
@@ -332,6 +381,10 @@ def main(argv=None):
     rows = load_rows(args.excel)
     if args.cmd == "pending":
         result = pending(rows, args.remote, args.after)
+    elif args.cmd == "locate":
+        result = locate(rows, parse_numbers(args.numbers))
+    elif args.cmd == "check":
+        result = check(rows, parse_numbers(args.numbers), args.remote)
     elif args.cmd == "extract":
         by_no = {r["no"]: r for r in rows}
         result = [build(by_no[n]) if n in by_no else {"receiptNo": n, "error": "엑셀에 없음"}
