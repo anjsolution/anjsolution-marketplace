@@ -153,3 +153,100 @@ def test_method_other_is_allowed():
 
 def test_number_specs():
     assert eh.parse_numbers(["1940-1942", "5,7"]) == [1940, 1941, 1942, 5, 7]
+
+
+CATALOG = {"version": {}, "본부": {
+    "강원본부": {"지사": {}},
+    "대구경북본부": {"지사": {"청송지사": {"터널": {
+        "남정5터널": {"코드": "065330", "노선": "동해선(포항-영덕)", "관리동": "남정5터널 관리동"}}}}},
+    "서울경기본부": {"지사": {"이천지사": {"터널": {
+        "금사4,금사5터널": {"코드": "045560", "노선": "중부내륙선", "관리동": None}}}}},
+}, "시스템분류": {"ATMS": ["통합", "통합 웹", "#2", "DB"], "교통센터": []}}
+
+
+@pytest.fixture
+def catalog_file(tmp_path):
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(CATALOG, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def test_extract_maps_targets_to_public_identifiers(workbook, catalog_file, capsys):
+    out = run(capsys, "extract", workbook, "1", "--catalog", catalog_file)
+    assert out[0]["incident"]["targets"] == [{"tunnelCode": "065330"}]
+    assert out[0]["target_notes"] == []
+    assert out[0]["ready"] is True
+
+
+def test_extract_requires_catalog_cache(workbook, tmp_path):
+    with pytest.raises(SystemExit, match="get_catalog"):
+        eh.main(["extract", str(workbook), "1", "--catalog", str(tmp_path / "none.json")])
+
+
+def test_unmapped_target_blocks_ready_and_mismatch_only_warns(tmp_path, catalog_file, capsys):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "장애 history"
+    ws.append(HEADER)
+    ws.append(row(1, {7: "없는터널"}))
+    ws.append(row(2, {6: "강원본부", 7: "금사4,5"}))
+    ws.append(row(3, {6: "전체본부", 7: "ATMS 통합 웹"}))
+    path = tmp_path / "targets.xlsx"
+    wb.save(path)
+    one, two, three = run(capsys, "extract", path, "1-3", "--catalog", catalog_file)
+    assert one["ready"] is False and one["incident"]["targets"] == []
+    assert any("없는터널" in r for r in one["review"])
+    assert two["ready"] is True and two["incident"]["targets"] == [{"tunnelCode": "045560"}]
+    assert "서울경기본부" in two["target_notes"][0]
+    assert three["incident"]["targets"] == [{"system": {"category": "ATMS", "subcategory": "통합 웹"}}]
+
+
+def test_pending_marks_unmapped_targets_only_with_catalog(workbook, tmp_path, catalog_file, capsys):
+    remote = tmp_path / "remote.json"
+    remote.write_text(json.dumps({"목록": [{"장애코드": "X", "접수번호": 0}]}), encoding="utf-8")
+    out = run(capsys, "pending", workbook, "--remote", remote, "--catalog", catalog_file)
+    assert [r["접수번호"] for r in out["등록_가능"]] == [1]
+
+
+def test_validate_rechecks_edited_json_and_builds_requests(workbook, tmp_path, catalog_file, capsys):
+    drafts = run(capsys, "extract", workbook, "1,2,4", "--catalog", catalog_file)
+    # 검토자가 JSON을 고친다: 2번 조치코드 해석 불가 → 방법을 직접 지정, 4번 대상을 없는 코드로 바꿈
+    drafts[1]["resolution"]["method"] = "REBOOT"
+    drafts[2]["incident"]["targets"] = [{"tunnelCode": "999999"}]
+    edited = tmp_path / "drafts.json"
+    edited.write_text(json.dumps(drafts, ensure_ascii=False), encoding="utf-8")
+    one, two, four = run(capsys, "validate", edited, "--catalog", catalog_file)
+
+    assert one["ready"] is True and one["review"] == []
+    create = one["requests"]["create_incident"]
+    assert create["targets"] == [{"tunnelCode": "065330"}]
+    assert "controllerSubType" not in create and None not in create.values()
+    assert "idempotency_key" not in create
+    assert [r["responseAt"] for r in one["requests"]["add_incident_responses"]["responses"]] == [
+        "2026-06-21T16:48:00+09:00", "2026-06-22T09:30:00+09:00", "2026-06-22T09:54:00+09:00"]
+    assert one["requests"]["add_incident_resolution"]["method"] == "REBOOT"
+
+    assert two["ready"] is True  # 저장된 review가 아니라 현재 값으로 다시 판정한다
+    assert any("resolvedAt" in n for n in two["notes"])  # 복구일자 없음은 경고만
+    assert two["requests"]["add_incident_responses"] is None
+    assert "remarks" not in two["requests"]["add_incident_resolution"]
+
+    assert four["ready"] is False
+    assert any("999999" in r for r in four["review"])
+    assert any("category" in r for r in four["review"])
+
+
+@pytest.mark.parametrize("target,needle", [
+    ({"system": {"category": "ATMS"}, "tunnelCode": "065330"}, "시스템"),
+    ({"system": {"category": "ATM"}}, "ATM"),
+    ({"branchName": "없는지사"}, "없는지사"),
+    ({"tunnelId": 1}, "tunnelId"),
+    ({}, "비어"),
+])
+def test_validate_rejects_bad_targets(workbook, tmp_path, catalog_file, capsys, target, needle):
+    drafts = run(capsys, "extract", workbook, "1", "--catalog", catalog_file)
+    drafts[0]["incident"]["targets"] = [target]
+    edited = tmp_path / "drafts.json"
+    edited.write_text(json.dumps(drafts, ensure_ascii=False), encoding="utf-8")
+    (one,) = run(capsys, "validate", edited, "--catalog", catalog_file)
+    assert one["ready"] is False and any(needle in r for r in one["review"])

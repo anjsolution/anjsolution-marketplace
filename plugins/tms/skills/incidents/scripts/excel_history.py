@@ -3,7 +3,8 @@
   python excel_history.py pending <엑셀> --remote 최근조회.json [--after 1944]
   python excel_history.py locate  <엑셀> 1707 1708 1800-1805
   python excel_history.py check   <엑셀> 1707 1708 --remote 날짜별조회.json
-  python excel_history.py extract <엑셀> 1945-1950
+  python excel_history.py extract <엑셀> 1945-1950 [--catalog 카탈로그.json] > drafts.json
+  python excel_history.py validate drafts.json [--catalog 카탈로그.json]
   python excel_history.py fix     <엑셀> 1945 --action ORCH [--code HL100]
 
 pending : 원격 최근 조회(search_incidents 응답 저장본)에서 마지막 접수번호를 찾아
@@ -12,11 +13,16 @@ pending : 원격 최근 조회(search_incidents 응답 저장본)에서 마지�
 locate  : 접수번호를 엑셀 접수일별로 묶어 search_incidents from/to 조회 계획을 만든다.
 check   : 날짜별 조회 결과로 번호마다 있음·없음·중복 의심을 판정한다.
           엑셀 접수번호 순서가 접수일 순서와 다를 수 있어 최종 존재 확인은 이 방식으로 한다.
-extract : 접수번호별 장애·대응·조치 초안. review가 비어 있어야 등록할 수 있다.
+extract : 접수번호별 장애·대응·조치 초안. 대상(F·G열)은 카탈로그 캐시로 create_incident의
+          공개 식별자 targets(tunnelCode·branchName·divisionName·system)로 바꾼다.
+          review가 비어 있어야 등록할 수 있다. target_notes는 확인용 경고다.
+validate: 검토·수정한 초안 JSON을 카탈로그와 도구 허용값으로 다시 판정하고, 통과한 건의
+          create_incident·add_incident_responses·add_incident_resolution 요청 본문(null 제외,
+          idempotency_key·incidentCode 제외)을 만든다.
 fix     : 장애코드(D열)·조치코드(K열)를 검증 후 그 셀만 고친다. 백업을 먼저 만든다.
 
-대상 ID는 만들지 않는다. 본부·터널명 원문(target_text)을 catalog로 해석한다.
-코드가 도구 값에 맞지 않으면 추측하지 않고 review에 남긴다.
+내부 ID는 만들지 않는다. 대상이나 코드가 하나로 정해지지 않으면 추측하지 않고 review에 남긴다.
+카탈로그는 catalog 스킬의 캐시(get_catalog 응답, 기본 ~/.anjsolution/tms/catalog.json)다.
 """
 import argparse
 import json
@@ -32,6 +38,9 @@ try:
     import openpyxl
 except ImportError:
     sys.exit("openpyxl이 필요합니다: python -m pip install openpyxl")
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import excel_targets as et  # noqa: E402 — 같은 폴더의 대상 매핑 모듈
 
 SHEET = "장애 history"
 COLS = {1: "no", 2: "done", 4: "code", 5: "received", 6: "division", 7: "tunnel",
@@ -135,7 +144,7 @@ def split_progress(raw, received, handler, review):
     return responses
 
 
-def build(row):
+def build(row, catalog=None):
     review = []
     handler = text(row["handler"])
     received = row["received"] if isinstance(row["received"], datetime) else None
@@ -157,10 +166,16 @@ def build(row):
                       "cause": text(row["cause"]), "memo": text(row["measure"]),
                       "remarks": text(row["remarks"])}
     responses = split_progress(row["progress"], received, handler, review)
+    notes = []
+    if catalog is not None:
+        targets, problems = et.map_targets(row["division"], row["tunnel"], catalog)
+        incident["targets"] = targets
+        review += problems
+        notes = et.division_notes(row["division"], targets, catalog)
     return {"receiptNo": row["no"], "ready": not review,
             "target_text": {"본부": text(row["division"]), "터널명": text(row["tunnel"])},
             "incident": incident, "responses": responses,
-            "resolution": resolution, "review": review}
+            "resolution": resolution, "review": review, "target_notes": notes}
 
 
 def load_remote(path):
@@ -173,7 +188,7 @@ def load_remote(path):
     return items
 
 
-def pending(rows, remote_path, after):
+def pending(rows, remote_path, after, catalog=None):
     items = load_remote(remote_path)
     if after is None and not any("접수번호" in it for it in items):
         sys.exit("원격 조회 결과에 접수번호 필드가 없습니다. MCP 배포 전이면 --after로 마지막 접수번호를 지정하세요.")
@@ -183,7 +198,7 @@ def pending(rows, remote_path, after):
         if not last:
             sys.exit("조회한 원격 장애에 접수번호가 하나도 없습니다. 조회 범위를 넓히세요.")
         after = last["접수번호"]
-    todo = [build(r) for r in rows if r["no"] > after]
+    todo = [build(r, catalog) for r in rows if r["no"] > after]
     numbers = [d["receiptNo"] for d in todo]
     dup_check = []
     for it in items:
@@ -257,6 +272,103 @@ def check(rows, numbers, remote_path):
         result.append({"접수번호": n, "판정": "중복 의심" if same else "없음",
                        "엑셀_접수일시": at, **({"원격_후보": same} if same else {})})
     return result
+
+
+KST_AT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?\+09:00$")
+TARGET_KEYS = {"divisionName", "branchName", "tunnelCode", "deviceId", "system"}
+
+
+def _clean(value):
+    """요청 본문에서 null을 뺀다 (MCP·백엔드는 선택 항목을 null 대신 생략하도록 요구한다)."""
+    if isinstance(value, dict):
+        return {k: _clean(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_clean(v) for v in value]
+    return value
+
+
+def check_targets(targets, catalog):
+    if not isinstance(targets, list) or not targets:
+        return ["incident.targets 비어 있음 — 대상이 하나 이상 필요"]
+    codes = {t["code"] for t in catalog.tunnels}
+    review = []
+    for i, t in enumerate(targets):
+        at = f"targets[{i}]"
+        if not isinstance(t, dict) or not t:
+            review.append(f"{at} 비어 있음")
+            continue
+        extra = sorted(set(t) - TARGET_KEYS)
+        if extra:
+            review.append(f"{at} 지원하지 않는 필드 {extra} — 공개 식별자만 사용")
+            continue
+        if "system" in t and set(t) - {"system", "divisionName"}:
+            review.append(f"{at} 시스템 대상에는 divisionName만 함께 지정할 수 있음")
+        if "divisionName" in t and t["divisionName"] not in catalog.divisions:
+            review.append(f"{at}.divisionName '{t['divisionName']}' 카탈로그에 없음")
+        if "branchName" in t and t["branchName"] not in catalog.branches:
+            review.append(f"{at}.branchName '{t['branchName']}' 카탈로그에 없음")
+        if "tunnelCode" in t and t["tunnelCode"] not in codes:
+            review.append(f"{at}.tunnelCode '{t['tunnelCode']}' 카탈로그에 없음")
+        if "system" in t:
+            s = t["system"] if isinstance(t["system"], dict) else {}
+            category, sub = s.get("category"), s.get("subcategory")
+            if category not in catalog.systems:
+                review.append(f"{at}.system.category '{category}' 카탈로그에 없음 "
+                              f"(가능: {', '.join(catalog.systems)})")
+            elif sub is not None and sub not in catalog.systems[category]:
+                review.append(f"{at}.system.subcategory '{sub}' {category}에 없음 "
+                              f"(가능: {', '.join(catalog.systems[category]) or '없음'})")
+    return review
+
+
+def validate_draft(d, catalog):
+    """검토·수정된 초안 1건을 현재 값으로 다시 판정한다 (저장된 ready·review는 무시)."""
+    if "incident" not in d:
+        return {"receiptNo": d.get("receiptNo"), "ready": False,
+                "review": [d.get("error") or "incident 없음"], "notes": [], "requests": None}
+    inc, review, notes = d["incident"], [], []
+    for key, table in (("category", CATEGORY), ("location", LOCATION), ("deviceCategory", DEVICE)):
+        if inc.get(key) not in table.values():
+            review.append(f"incident.{key} '{inc.get(key)}' 허용값 아님")
+    if (inc.get("deviceCategory") == "CONTROLLER") != (inc.get("controllerSubType") is not None):
+        review.append("incident.controllerSubType는 deviceCategory가 CONTROLLER일 때만 필수")
+    elif inc.get("controllerSubType") is not None and inc["controllerSubType"] not in SUBTYPE.values():
+        review.append(f"incident.controllerSubType '{inc['controllerSubType']}' 허용값 아님")
+    if not text(inc.get("memo")):
+        review.append("incident.memo 비어 있음")
+    if not KST_AT.match(inc.get("receivedAt") or ""):
+        review.append(f"incident.receivedAt '{inc.get('receivedAt')}' — +09:00 KST 일시 필요")
+    review += check_targets(inc.get("targets"), catalog)
+    if isinstance(inc.get("targets"), list):
+        notes += et.division_notes((d.get("target_text") or {}).get("본부"), inc["targets"], catalog)
+
+    responses = d.get("responses") or []
+    for i, r in enumerate(responses):
+        if not text(r.get("content")):
+            review.append(f"responses[{i}].content 비어 있음")
+        if not KST_AT.match(r.get("responseAt") or ""):
+            review.append(f"responses[{i}].responseAt '{r.get('responseAt')}' — +09:00 KST 일시 필요")
+    resolution = d.get("resolution")
+    if resolution:
+        for key, table in ACTION:
+            if resolution.get(key) not in table.values():
+                review.append(f"resolution.{key} '{resolution.get(key)}' 허용값 아님")
+        if resolution.get("resolvedAt") is None:
+            notes.append("resolution.resolvedAt 없음 — 생략하면 등록 시각으로 기록됨")
+        elif not KST_AT.match(resolution["resolvedAt"]):
+            review.append(f"resolution.resolvedAt '{resolution['resolvedAt']}' — +09:00 KST 일시 필요")
+    return {"receiptNo": d.get("receiptNo"), "ready": not review, "review": review, "notes": notes,
+            "requests": {
+                "create_incident": _clean(inc),
+                "add_incident_responses": {"responses": _clean(responses)} if responses else None,
+                "add_incident_resolution": _clean(resolution) if resolution else None,
+            }}
+
+
+def validate(path, catalog):
+    with open(path, encoding="utf-8") as f:
+        drafts = json.load(f)
+    return [validate_draft(d, catalog) for d in (drafts if isinstance(drafts, list) else [drafts])]
 
 
 def summary(d):
@@ -359,6 +471,7 @@ def main(argv=None):
     p.add_argument("excel")
     p.add_argument("--remote", required=True, help="search_incidents 응답 저장 JSON")
     p.add_argument("--after", type=int, help="마지막 접수번호 직접 지정")
+    p.add_argument("--catalog", help="카탈로그 캐시 JSON (지정하면 대상 매핑까지 판정)")
     p = sub.add_parser("locate", help="접수번호별 날짜 조회 계획")
     p.add_argument("excel")
     p.add_argument("numbers", nargs="+")
@@ -369,6 +482,10 @@ def main(argv=None):
     p = sub.add_parser("extract", help="접수번호별 등록용 JSON 초안")
     p.add_argument("excel")
     p.add_argument("numbers", nargs="+", help="예: 1945-1950 1952 또는 1,2,3")
+    p.add_argument("--catalog", help=f"카탈로그 캐시 JSON (기본 {et.DEFAULT_CATALOG})")
+    p = sub.add_parser("validate", help="검토·수정한 초안 JSON 재판정과 요청 본문 생성")
+    p.add_argument("drafts", help="extract 출력(수정본) JSON")
+    p.add_argument("--catalog", help=f"카탈로그 캐시 JSON (기본 {et.DEFAULT_CATALOG})")
     p = sub.add_parser("fix", help="장애코드·조치코드 셀 수정")
     p.add_argument("excel")
     p.add_argument("number", type=int)
@@ -378,16 +495,22 @@ def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8")
 
+    if args.cmd == "validate":
+        result = validate(args.drafts, et.load_catalog(args.catalog))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
     rows = load_rows(args.excel)
     if args.cmd == "pending":
-        result = pending(rows, args.remote, args.after)
+        catalog = et.load_catalog(args.catalog) if args.catalog else None
+        result = pending(rows, args.remote, args.after, catalog)
     elif args.cmd == "locate":
         result = locate(rows, parse_numbers(args.numbers))
     elif args.cmd == "check":
         result = check(rows, parse_numbers(args.numbers), args.remote)
     elif args.cmd == "extract":
+        catalog = et.load_catalog(args.catalog)
         by_no = {r["no"]: r for r in rows}
-        result = [build(by_no[n]) if n in by_no else {"receiptNo": n, "error": "엑셀에 없음"}
+        result = [build(by_no[n], catalog) if n in by_no else {"receiptNo": n, "error": "엑셀에 없음"}
                   for n in parse_numbers(args.numbers)]
     else:
         result = fix(args.excel, rows, args.number, args.code, args.action)
