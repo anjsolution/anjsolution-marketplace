@@ -10,7 +10,7 @@ description: 저장된 한글(hwpx) 양식의 {{필드}} 자리와 사진 자리
 원하면 화면 없이 PDF 도 만든다. 원본 양식의 페이지를 골라 여러 번 반복할 수 있다(사진 5장이면 사진 페이지 3개).
 양식 원본은 읽기만 하고 절대 고치지 않는다. 결과는 항상 새 파일이다.
 
-> 양식과 값이 정해져 있으면 이 스킬로 바로 처리한다. **정보가 부족하면**(어떤 템플릿인지, 어떤 사진이 필요한지, 순서·이중화 규칙 등) 플러그인 진입점인 `manage` 스킬의 참고 문서를 본다 — 예: TTMS 사진대지는 `manage/references/ttms_construction_project/ttms_photo_doc_make.md`, 필요한 사진·이중화 규칙은 `ttms_photo_doc_types.md`, 동봉 템플릿은 `manage/templates/ttms_construction_project/`.
+> 양식과 값이 정해져 있으면 이 스킬로 바로 처리한다. **정보가 부족하면**(어떤 템플릿인지, 어떤 사진이 필요한지, 순서·이중화 규칙 등) 플러그인 진입점인 `manage` 스킬의 참고 문서를 본다 — 예: TTMS 사진대지는 `manage/references/ttms_construction_project/ttms_photo_doc_make.md`, 필요한 사진·이중화 규칙은 `ttms_photo_doc_types.md`, 동봉 템플릿은 `manage/templates/ttms_construction_project/`. 템플릿을 찾는 순서(사용자가 준 파일 → 개인 템플릿 `~/.anjsolution/doc-template/templates/` → 동봉 템플릿)는 `manage/SKILL.md` 4장.
 
 ## 실행 방법
 ```bash
