@@ -1,0 +1,50 @@
+# doc-template
+
+저장된 문서 양식에 값을 채워 문서를 만들어 주는 플러그인이다. v0.1.0 은 한글 양식용 `hwpx` 스킬 하나를 제공한다.
+`{{필드}}` 자리와 사진 자리에 값·사진을 채워 hwpx 와 PDF 를 만들고, 원본 페이지를 골라 반복할 수 있다(사진대지 등).
+
+## 설치
+
+마켓플레이스 등록 후:
+
+```
+/plugin install doc-template@anjsolution          # Claude Code
+codex plugin add doc-template@anjsolution         # Codex
+```
+
+설치 후에는 "이 양식에 값 채워줘", "사진대지 만들어줘" 처럼 평소대로 요청하면 된다.
+
+## 요구사항
+
+- Node 18 이상
+- 첫 실행 때 의존성을 자동 설치한다(인터넷 필요, 1회).
+- PDF 출력은 Edge 또는 Chrome 이 필요하다(`CHROME_PATH` 로 지정 가능). hwpx 만 만들 때는 필요 없다.
+
+## 명령 요약
+
+```bash
+node skills/hwpx/scripts/hwpx.mjs scan   <서식.hwpx>                 # 토큰 목록
+node skills/hwpx/scripts/hwpx.mjs pages  <서식.hwpx>                 # 페이지별 토큰
+node skills/hwpx/scripts/hwpx.mjs fill   <서식.hwpx> <값.json> -o <결과.hwpx>
+node skills/hwpx/scripts/hwpx.mjs export <서식.hwpx> <값.json> -o <결과.pdf> [--hwpx <결과.hwpx>]
+```
+
+값 JSON 형식과 작업 순서는 `skills/hwpx/SKILL.md`, 규칙 상세는 `skills/hwpx/references/` 에 있다.
+
+## 서식 작성 방법 요약
+
+- 한글에서 `{{필드명}}` 을 **한 번에 이어서** 타이핑한다(중간에 서식을 바꾸면 토큰이 쪼개진다).
+- 사진 자리는 키 이름에 `사진` 또는 `이미지` 를 넣고, 그 문단을 가운데 정렬해 두면 사진이 가운데에 놓인다.
+- 반복할 페이지는 쪽 나눔으로 나눈다.
+- 편집 후 `scan` 으로 쪼개진 토큰이 없는지 확인한다.
+
+## 하지 않는 것
+
+원본 양식 수정, 사진 압축, 화면 미리보기, 표 행 단위 반복은 이번 버전에 없다.
+이미지 압축과 템플릿 관리(찾기·가져오기·값 기억)는 이후 `manage` 스킬에서 다룬다.
+
+## 라이선스 고지
+
+- 한글 문서 처리·PDF 렌더에 외부 패키지 [kordoc](https://github.com/chrisryugj/kordoc)(MIT, chrisryugj/kordoc, 버전 4.13.1 고정)을 사용한다. kordoc 은 일부 Apache-2.0 파생 코드를 포함한다. 번들해서 배포할 때는 해당 `LICENSE`·`NOTICE` 를 함께 넣어야 한다.
+- 토큰 규칙과 일부 처리 로직은 사내 `hwpx-editor` 에서 이식했다.
+- 그 밖에 jszip, @xmldom/xmldom, puppeteer-core 를 사용한다.

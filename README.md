@@ -66,6 +66,7 @@ codex plugin add <플러그인이름>@anjsolution
 | 플러그인 | 하는 일 | 설치 |
 |---|---|---|
 | `search-business` | 한국도로공사 ebid 공고·계약 검색·개찰결과·첨부 수집 | `/plugin install search-business@anjsolution` |
+| `doc-template` | 한글(hwpx) 양식의 {{필드}}·사진 자리에 값을 채워 hwpx·PDF 생성 | `/plugin install doc-template@anjsolution` |
 
 플러그인을 설치하면 별도 명령 없이 **평소처럼 질문하면** 됩니다.
 예: "○○터널 최근 장애 이력 알려줘" → 관련 플러그인이 알아서 동작합니다.
