@@ -145,6 +145,27 @@ test('collectPaths: 폴더+파일+--list 혼합, 비사진·하위폴더 제외,
   assert.equal(missing.length, 1)
 })
 
+test('collectPaths: recursive 면 하위 폴더까지 (폴더 → 그 안 파일 → 하위 폴더 순, 이름순)', () => {
+  const d = tmp(); const a = join(d, 'a'); const b = join(d, 'b'); const ab = join(a, 'x')
+  mkdirSync(a); mkdirSync(b); mkdirSync(ab)
+  write(d, 'top.jpg', makeJpeg()); write(a, '2.jpg', makeJpeg()); write(a, 'note.txt', 'x')
+  write(ab, 'deep.jpg', makeJpeg()); write(b, '1.png', makePngHeader(1, 1))
+  const { files } = collectPaths([d], null, { recursive: true })
+  const rel = files.map((f) => f.slice(d.length + 1).split(/[\\/]/).join('/'))
+  assert.deepEqual(rel, ['top.jpg', 'a/2.jpg', 'a/x/deep.jpg', 'b/1.png'])
+  assert.equal(collectPaths([d]).files.length, 1)   // 기본은 하위 폴더 제외
+})
+
+test('CLI: --recursive (-r) 와 --list 안의 폴더에도 적용', () => {
+  const d = tmp(); const sub = join(d, 'sub'); mkdirSync(sub)
+  write(d, 'a.jpg', makeJpeg()); write(sub, 'b.jpg', makeJpeg())
+  assert.equal(JSON.parse(run(d, '--json').stdout).summary.total, 1)
+  assert.equal(JSON.parse(run(d, '--recursive', '--json').stdout).summary.total, 2)
+  assert.equal(JSON.parse(run('-r', d, '--json').stdout).summary.total, 2)
+  const list = write(tmp(), 'l.txt', `${d}\n`)
+  assert.equal(JSON.parse(run('--list', list, '-r', '--json').stdout).summary.total, 2)
+})
+
 test('summarize: 정렬(촬영순 → 없는 것은 입력 순) 과 요약', () => {
   const mk = (file, taken_at, extra = {}) => ({ file, bytes: 1, width: 1, height: 1, orientation: null, taken_at, gps: null, device: null, format: 'jpg', ...extra })
   const { photos, summary } = summarize([

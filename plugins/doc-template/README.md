@@ -36,7 +36,7 @@ node skills/hwpx/scripts/hwpx.mjs export <서식.hwpx> <값.json> -o <결과.pdf
 사진 폴더·파일의 촬영 날짜·위치·크기·용량을 한 번에 뽑는다(읽기 전용, 설치할 것 없음). "사진 촬영 날짜 확인해줘" 처럼 요청하면 된다.
 
 ```bash
-node skills/manage/scripts/analyze-image.mjs <사진 폴더|파일> ... [--list <목록.txt>] [--json]
+node skills/manage/scripts/analyze-image.mjs <사진 폴더|파일> ... [--list <목록.txt>] [--recursive|-r] [--json]
 ```
 
 - 없는 정보는 "없음"으로만 표시한다(파일명·수정 시각으로 추측하지 않는다). 카카오톡으로 받은 사진은 날짜·위치가 지워져 있는 경우가 많다.

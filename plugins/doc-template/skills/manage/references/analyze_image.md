@@ -9,7 +9,7 @@
 
 ## 실행 방법
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/manage/scripts/analyze-image.mjs" <경로> [<경로> ...] [--list <목록.txt>] [--json]
+node "${CLAUDE_PLUGIN_ROOT}/skills/manage/scripts/analyze-image.mjs" <경로> [<경로> ...] [--list <목록.txt>] [--recursive|-r] [--json]
 ```
 Codex 에서는 이 스킬 폴더 기준 상대 경로 `scripts/analyze-image.mjs` 로 실행한다.
 
@@ -17,7 +17,7 @@ Codex 에서는 이 스킬 폴더 기준 상대 경로 `scripts/analyze-image.mj
 - 사진 파일의 앞부분(헤더)만 읽어서 수십 장도 1초 안에 끝난다.
 
 ## 입력
-- `<경로>` 는 사진 파일 또는 폴더이고, 여러 개를 섞어 줄 수 있다. 폴더는 그 안의 사진 파일 전부이며 하위 폴더는 들어가지 않는다.
+- `<경로>` 는 사진 파일 또는 폴더이고, 여러 개를 섞어 줄 수 있다. 폴더는 그 안의 사진 파일 전부이며, 하위 폴더는 `--recursive`(`-r`)를 줄 때만 들어간다(폴더의 사진 → 하위 폴더 이름순). `--list` 안의 폴더에도 같이 적용된다.
 - `--list <목록.txt>` 는 한 줄에 경로 하나인 텍스트 파일(UTF-8). 빈 줄과 `#` 로 시작하는 줄은 무시한다. 상대 경로는 목록 파일 위치 기준이다.
 - 사진 확장자: `.jpg .jpeg .png .gif .bmp .heic .heif` (대소문자 무시). 그 밖의 파일은 건너뛴다.
 - 없는 경로는 stderr 로 알리고 나머지는 계속 처리한다.

@@ -196,18 +196,23 @@ export async function analyzeFile(file) {
 
 const isPhoto = (p) => EXTS.has(extname(p).toLowerCase())
 
-export function collectPaths(paths, listFile) {
+const byName = (a, b) => a.toLowerCase().localeCompare(b.toLowerCase()) || (a < b ? -1 : 1)
+
+// recursive 면 폴더의 사진 → 하위 폴더(이름순) 순서로 내려간다.
+export function collectPaths(paths, listFile, { recursive = false } = {}) {
   const files = [], missing = []
   const seen = new Set()
   const add = (f) => { const a = resolve(f); if (!seen.has(a)) { seen.add(a); files.push(a) } }
+  const walk = (dir) => {
+    const entries = readdirSync(dir, { withFileTypes: true })
+    for (const n of entries.filter((e) => e.isFile() && isPhoto(e.name)).map((e) => e.name).sort(byName)) add(join(dir, n))
+    if (recursive) for (const n of entries.filter((e) => e.isDirectory()).map((e) => e.name).sort(byName)) walk(join(dir, n))
+  }
   const take = (p) => {
     let st
     try { st = statSync(p) } catch { missing.push(p); return }
-    if (st.isDirectory()) {
-      const names = readdirSync(p, { withFileTypes: true }).filter((e) => e.isFile() && isPhoto(e.name)).map((e) => e.name)
-      names.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()) || (a < b ? -1 : 1))
-      for (const n of names) add(join(p, n))
-    } else if (isPhoto(p)) add(p)
+    if (st.isDirectory()) walk(p)
+    else if (isPhoto(p)) add(p)
   }
   for (const p of paths || []) take(p)
   if (listFile) {
@@ -259,14 +264,15 @@ export function formatSummary(s) {
 }
 
 // ---------- CLI ----------
-const USAGE = '사용법: node analyze-image.mjs <경로> [<경로> ...] [--list <목록.txt>] [--json]'
+const USAGE = '사용법: node analyze-image.mjs <경로> [<경로> ...] [--list <목록.txt>] [--recursive|-r] [--json]'
 
 export async function main(argv) {
   const paths = []
-  let list = null, json = false
+  let list = null, json = false, recursive = false
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--json') json = true
+    else if (a === '--recursive' || a === '-r') recursive = true
     else if (a === '--list') {
       if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) { console.error(`--list 뒤에 목록 파일 경로가 필요합니다.\n${USAGE}`); return 2 }
       list = argv[++i]
@@ -275,7 +281,7 @@ export async function main(argv) {
   }
   if (!paths.length && !list) { console.error(USAGE); return 2 }
   let collected
-  try { collected = collectPaths(paths, list) } catch (e) { console.error(`입력을 읽지 못했습니다: ${e.message}`); return 1 }
+  try { collected = collectPaths(paths, list, { recursive }) } catch (e) { console.error(`입력을 읽지 못했습니다: ${e.message}`); return 1 }
   for (const m of collected.missing) console.error(`경로를 찾을 수 없습니다: ${m}`)
   if (!collected.files.length && collected.missing.length) return 1
   const results = await Promise.all(collected.files.map((f) => analyzeFile(f)))
