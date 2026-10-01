@@ -76,6 +76,10 @@ export async function main(argv) {
     }
     const valuesPath = resolve(pos[1])
     const input = JSON.parse(readFileSync(valuesPath, 'utf8'))
+    if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+      console.error('값 파일은 { "values": …, "pages": … } 형태의 객체여야 합니다.')
+      return 1
+    }
     const { bytes: out, report } = await fill(bytes, input, { baseDir: dirname(valuesPath) })
     const saved = []
     if (cmd === 'fill') {

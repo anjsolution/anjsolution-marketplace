@@ -115,3 +115,13 @@ test('PDF 브라우저 프로필은 직접 만든 임시 폴더를 쓰고 닫을
   assert.equal(during.length, 1)
   assert.ok(!existsSync(join(tmpdir(), during[0])), '닫은 뒤 프로필 폴더가 남아 있음')
 })
+
+test('값 파일이 객체가 아니면 exit 1 과 한국어 오류', async () => {
+  const dir = await setup()
+  for (const body of ['null', '[]', '"abc"']) {
+    writeFileSync(join(dir, 'v.json'), body)
+    const r = run('fill', join(dir, 't.hwpx'), join(dir, 'v.json'), '-o', join(dir, 'o.hwpx'))
+    assert.equal(r.status, 1, body)
+    assert.match(r.stderr, /객체여야 합니다/)
+  }
+})

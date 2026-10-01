@@ -15,7 +15,7 @@
 - 글자는 `hp:p` > `hp:run` > `hp:t`. 토큰이 쪼개졌다면 `{{`, 필드명, `}}` 가 서로 다른 `hp:run`/`hp:t` 에 나뉘어 있다. 첫 `hp:t` 에 합치고 나머지 run 은 비운다(서식 속성은 첫 run 것을 쓴다).
 - 표는 `hp:tbl` > `hp:tr` > `hp:tc`. 셀 크기는 `hp:cellSz`, 셀 여백은 `hp:cellMargin`(셀이 `hasMargin="0"` 이면 표의 `hp:inMargin`).
 - 구역 정의 `secPr`(용지·여백)은 **첫 문단**에 들어 있다. 쪽 나눔을 넣거나 문단을 옮길 때 지우거나 다른 문단으로 옮기지 않는다.
-- 조판 캐시 `hp:linesegarray` 는 글자를 바꾼 문단에서는 지운다.
+- 조판 캐시 `hp:linesegarray` 는 글자를 바꾼 문단에서는 지운다. (스크립트 fill 은 문서 전체에서 지운다.)
 - 그림 등록은 `BinData/` 파일 + `Contents/content.hpf` 의 `opf:item`.
 
 ## 다시 묶기 (Node 한 줄)
