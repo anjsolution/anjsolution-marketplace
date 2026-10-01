@@ -12,12 +12,16 @@ export function splitPages(doc) {
   return pages
 }
 
-const HEAD_CHILDREN = new Set(['secPr', 'ctrl'])
-// 구역 정의(secPr)·단 정의(ctrl/colPr)를 담은 run — 문서 첫 문단에 한 번만 있어야 한다
-const isHeadRun = (run) => run.localName === 'run' && children(run).some((c) => HEAD_CHILDREN.has(c.localName))
+// 구역 정의(secPr)와 단 정의(colPr 를 담은 ctrl)는 문서 첫 문단에 한 번만 있어야 한다
+const isHeadPart = (c) => c.localName === 'secPr' || (c.localName === 'ctrl' && children(c, 'colPr').length > 0)
+const headParts = (para) => children(para, 'run').flatMap((run) => children(run).filter(isHeadPart).map((el) => ({ el, run })))
+
+// 번호를 다시 매길 개체 요소 (필드·책갈피 등의 id 는 건드리지 않는다)
+const OBJECT_TAGS = new Set(['tbl', 'pic', 'container', 'rect', 'ellipse', 'line', 'arc', 'polygon', 'curve',
+  'connectLine', 'ole', 'equation', 'textart', 'video', 'chart'])
 
 export function renumberIds(doc) {
-  const all = descendants(doc.documentElement, '*').filter((e) => e.localName !== 'p')
+  const all = descendants(doc.documentElement, '*').filter((e) => OBJECT_TAGS.has(e.localName))
   const big = 2 ** 31
   let max = 0
   for (const e of all) for (const a of ['id', 'instid']) {
@@ -38,23 +42,32 @@ export function renumberIds(doc) {
 export function composePages(doc, spec, onPage) {
   const root = doc.documentElement
   const original = splitPages(doc)
+  if (!original[0].length) throw new Error('구역에 문단이 없어 페이지를 구성할 수 없습니다.')
   for (const entry of spec) {
     if (!Number.isInteger(entry.page) || entry.page < 1 || entry.page > original.length)
       throw new Error(`페이지 ${entry.page} 이(가) 서식에 없습니다. 서식 페이지는 1~${original.length} 입니다.`)
   }
-  const headRuns = children(original[0][0]).filter(isHeadRun)
+  // 원본 첫 문단의 구역·단 정의를 치환 전에 복제해 둔다
+  const head = headParts(original[0][0])
+  const headClones = head.map(({ el }) => el.cloneNode(true))
+  const headCharPr = head[0]?.run.getAttribute('charPrIDRef') ?? '0'
   for (const paras of original) for (const x of paras) root.removeChild(x)
 
   spec.forEach((entry, i) => {
     const copies = original[entry.page - 1].map((x) => x.cloneNode(true))
-    for (const x of copies) for (const run of children(x).filter(isHeadRun)) x.removeChild(run)
+    if (entry.page === 1) for (const { el } of headParts(copies[0])) el.parentNode.removeChild(el)
     copies.forEach((x, j) => x.setAttribute('pageBreak', j === 0 && i > 0 ? '1' : '0'))
     for (const x of copies) root.appendChild(x)
     onPage(copies, entry)
   })
 
   const first = children(root, 'p')[0]
-  if (first) for (const run of [...headRuns].reverse()) first.insertBefore(run.cloneNode(true), first.firstChild)
+  if (first && headClones.length) {
+    const run = doc.createElementNS(first.namespaceURI, `${first.prefix ? first.prefix + ':' : ''}run`)
+    run.setAttribute('charPrIDRef', headCharPr)
+    for (const c of headClones) run.appendChild(c)
+    first.insertBefore(run, first.firstChild)
+  }
   renumberIds(doc)
 }
 

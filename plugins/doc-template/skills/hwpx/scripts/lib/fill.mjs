@@ -38,6 +38,11 @@ export async function fill(bytes, input = {}, opts = {}) {
   const { zip, sectionNames } = await readHwpx(bytes)
   if (input.pages && sectionNames.length > 1)
     throw new Error('pages 구성은 구역이 하나인 서식만 지원합니다. XML 을 직접 편집하세요 (references/xml-edit.md).')
+  if (input.pages !== undefined && input.pages !== null) {
+    const ok = Array.isArray(input.pages) && input.pages.length > 0 &&
+      input.pages.every((e) => e && typeof e === 'object' && Number.isInteger(e.page))
+    if (!ok) throw new Error('pages 는 1개 이상의 {page:번호} 목록이어야 합니다.')
+  }
   const seen = new Set()
   const pageValueKeys = new Set()
   // 페이지별 값 우선, 없으면 공통 값. 상속 속성(constructor 등)은 값으로 보지 않는다.

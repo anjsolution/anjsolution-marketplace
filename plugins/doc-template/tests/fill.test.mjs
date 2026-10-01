@@ -73,11 +73,52 @@ test('secPr 은 첫 문단에 정확히 하나', async () => {
   assert.match(first, /<hp:secPr/)
 })
 
-test('복사본 id 유일', async () => {
-  const { bytes: out } = await fill(await photoTemplate(), { values: {}, pages: [{ page: 2 }, { page: 2 }, { page: 2 }] })
+test('복사본 개체 id/instid 유일, 필드 id 는 그대로', async () => {
+  const table = cellTable('{{사진-1}}', { pageBreak: 1 }).replace('<hp:tbl id=', '<hp:tbl instid="777" id=')
+  const field = '<hp:p id="9000" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:ctrl><hp:fieldBegin id="42" type="CLICK_HERE"/></hp:ctrl><hp:t>x</hp:t></hp:run></hp:p>'
+  const bytes = await makeHwpx({ sections: [p('{{공사명}}', { head: secPrRun() }) + table + field] })
+  const { bytes: out } = await fill(bytes, { values: {}, pages: [{ page: 2 }, { page: 2 }, { page: 2 }] })
   const xml = await section0(out)
-  const ids = [...xml.matchAll(/<hp:(?!p )\w+ [^>]*\bid="(\d+)"/g)].map((m) => m[1]).filter((x) => x !== '0')
-  assert.equal(new Set(ids).size, ids.length)
+  const tags = [...xml.matchAll(/<hp:tbl [^>]*>/g)].map((m) => m[0])
+  assert.equal(tags.length, 3)
+  for (const a of ['id', 'instid']) {
+    const ids = tags.map((t) => t.match(new RegExp(`\\b${a}="(\\d+)"`))[1])
+    assert.equal(new Set(ids).size, 3, a)
+  }
+  assert.equal((xml.match(/<hp:fieldBegin id="42"/g) ?? []).length, 3)
+})
+
+const combinedHead = () => secPrRun().replace('</hp:run>', '<hp:t>{{공사명}}</hp:t></hp:run>')
+
+test('첫 문단 run 에 구역 정의와 텍스트가 같이 있어도 텍스트는 모든 복사본에 남는다', async () => {
+  const bytes = await makeHwpx({ sections: [p('', { head: combinedHead() }) + cellTable('{{사진-1}}', { pageBreak: 1 })] })
+  const { bytes: out } = await fill(bytes, { values: { 공사명: 'P' }, pages: [{ page: 2 }, { page: 1 }, { page: 1 }] })
+  const xml = topParas(await section0(out))
+  assert.equal((xml.match(/<hp:secPr/g) ?? []).length, 1)
+  assert.equal((xml.match(/<hp:colPr/g) ?? []).length, 1)
+  assert.match(xml.slice(0, xml.indexOf('</hp:p>')), /<hp:secPr/)
+  assert.deepEqual(texts(xml).filter((t) => t.includes('P')), ['P', 'P'])
+  assert.ok(!xml.includes('{{'))
+})
+
+test('페이지 2의 일반 ctrl(쪽 번호)은 모든 복사본에 남는다', async () => {
+  const num = '<hp:p id="9100" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:ctrl><hp:pageNum pos="BOTTOM_CENTER" formatType="DIGIT" sideChar="-"/></hp:ctrl></hp:run></hp:p>'
+  const bytes = await makeHwpx({ sections: [p('a', { head: secPrRun() }) + cellTable('t', { pageBreak: 1 }) + num] })
+  const { bytes: out } = await fill(bytes, { values: {}, pages: [{ page: 2 }, { page: 2 }, { page: 2 }] })
+  assert.equal(((await section0(out)).match(/<hp:pageNum /g) ?? []).length, 3)
+})
+
+test('빈 문자열·null 페이지 값은 공통 값으로 대체', async () => {
+  const bytes = await makeHwpx({ sections: [p('{{a}}|{{b}}')] })
+  const { bytes: out } = await fill(bytes, { values: { a: 'A', b: 'B' }, pages: [{ page: 1, values: { a: '', b: null } }] })
+  assert.ok((await section0(out)).includes('<hp:t>A|B</hp:t>'))
+})
+
+test('pages 형식이 잘못되면 실패', async () => {
+  const bytes = await photoTemplate()
+  await assert.rejects(fill(bytes, { pages: [] }), /pages 는 1개 이상/)
+  await assert.rejects(fill(bytes, { pages: [null] }), /pages 는 1개 이상/)
+  await assert.rejects(fill(bytes, { pages: [{ page: '1' }] }), /pages 는 1개 이상/)
 })
 
 test('없는 페이지 번호는 실패', async () => {
