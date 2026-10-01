@@ -23,7 +23,7 @@ Claude Code 또는 Codex 를 설치해주세요.
 Claude Code 를 실행한 뒤, 프롬프트에 아래 두 줄을 차례로 입력합니다.
 
 ```
-/plugin marketplace add anjsolution/plugins
+/plugin marketplace add anjsolution/anjsolution-marketplace
 /plugin install <플러그인이름>@anjsolution
 ```
 
@@ -32,7 +32,7 @@ Claude Code 를 실행한 뒤, 프롬프트에 아래 두 줄을 차례로 입�
 ```
 1. [설정 메뉴] - [사용자 지정] - [플러그인]
 2. 우상단 [추가] 버튼 - [마켓플레이스 추가] - [저장소에서 추가]
-3. URL: `anjsolution/plugins` 입력 
+3. URL: `anjsolution/anjsolution-marketplace` 입력 
 4. [동기화] 버튼 클릭
 5. 우상단 [찾아보기] 버튼 - [플러그인] - [개인] - `anjsolution` 선택
 6. `anjsolution` 마켓플레이스에서 원하는 plugin 선택하여 설치
@@ -43,7 +43,7 @@ Claude Code 를 실행한 뒤, 프롬프트에 아래 두 줄을 차례로 입�
 터미널에서 아래 두 줄을 차례로 실행합니다.
 
 ```
-codex plugin marketplace add anjsolution/plugins
+codex plugin marketplace add anjsolution/anjsolution-marketplace
 codex plugin add <플러그인이름>@anjsolution
 ```
 
@@ -51,7 +51,7 @@ codex plugin add <플러그인이름>@anjsolution
 
 ```
 1. [플러그인] - 우상단 [추가] 버튼 - [마켓플레이스 추가]
-2. 출처: `anjsolution/plugins` 입력 
+2. 출처: `anjsolution/anjsolution-marketplace` 입력 
 3. [마켓플레이스 추가] 버튼 클릭
 4. 설치된 플러그인 목록 하단의 `공개/개인용` 탭에서 `개인용` 탭으로 이동
 5. `anjsolution` 마켓플레이스에서 원하는 plugin 선택하여 설치

@@ -8,11 +8,11 @@
 마켓플레이스를 먼저 등록해야 합니다. 터미널에서 (기본 `--scope user` = 전역 설치):
 
 ```
-claude plugin marketplace add anjsolution/plugins
+claude plugin marketplace add anjsolution/anjsolution-marketplace
 claude plugin install tms@anjsolution
 ```
 
-세션 안에서는 `/plugin marketplace add anjsolution/plugins` 후 `/plugin install tms@anjsolution`.
+세션 안에서는 `/plugin marketplace add anjsolution/anjsolution-marketplace` 후 `/plugin install tms@anjsolution`.
 Codex 는 `codex plugin add tms@anjsolution`.
 
 설치하면 MCP 서버가 함께 등록됩니다. 첫 사용 시 브라우저가 열리며 로그인하면 연결이 끝납니다.

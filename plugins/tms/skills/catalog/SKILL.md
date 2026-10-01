@@ -83,9 +83,9 @@ incidents 스킬의 엑셀 스크립트도 이 파일을 읽는다.
 설치는 **마켓플레이스 등록이 먼저**다. 터미널에서 (기본 `--scope user` = 전역):
 
 ```
-claude plugin marketplace add anjsolution/plugins
+claude plugin marketplace add anjsolution/anjsolution-marketplace
 claude plugin install tms@anjsolution
 ```
 
-세션 안에서는 `/plugin marketplace add anjsolution/plugins` · `/plugin install tms@anjsolution`.
+세션 안에서는 `/plugin marketplace add anjsolution/anjsolution-marketplace` · `/plugin install tms@anjsolution`.
 Codex 는 `codex plugin add tms@anjsolution`.
