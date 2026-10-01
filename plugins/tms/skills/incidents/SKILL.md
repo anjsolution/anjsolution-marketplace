@@ -14,16 +14,17 @@ description: 사용자의 현재 요청에 TMS(대소문자 무관)를 사용하
 |---|---|
 | 장애 목록·상세·대응/조치 이력 조회 | [read-01-search](references/read-01-search.md) |
 | 건수·비교·원인·대응 패턴 분석 | [read-02-analysis](references/read-02-analysis.md) |
-| 장애 history 엑셀과 비교·특이사항 보고 | [read-03-excel-compare](references/read-03-excel-compare.md) |
+| 장애 history 엑셀과 원격 비교(미등록·중복·추가분) | [read-03-excel-compare](references/read-03-excel-compare.md) |
+| 엑셀 행 점검(원본 추출·매핑·이상 데이터 판단) | [read-04-excel-review](references/read-04-excel-review.md) |
 | 신규 장애 등록 | [write-01-common](references/write-01-common.md)과 [write-02-incident](references/write-02-incident.md) |
-| 엑셀 행을 등록 초안(JSON)으로 추출·검토·등록 | [write-01-common](references/write-01-common.md), [write-02-incident](references/write-02-incident.md), [write-04-excel-register](references/write-04-excel-register.md) |
+| 지정한 엑셀 행 등록 | [read-04-excel-review](references/read-04-excel-review.md), [write-01-common](references/write-01-common.md), [write-02-incident](references/write-02-incident.md), [write-04-excel-register](references/write-04-excel-register.md) |
 | 기존 장애에 대응 기록·조치 결과 등록 | [write-01-common](references/write-01-common.md)과 [write-03-history](references/write-03-history.md) |
 | 등록 결과 불명·재시도 | [write-01-common](references/write-01-common.md) |
 
 읽기만 요청받았다면 쓰기 문서는 읽지 않는다. 조회·비교 결과에서 장애를 발견했다고 등록을 시작하지 않는다.
 쓰기는 신규 장애 등록(`create_incident`), 대응 기록 추가(`add_incident_responses`),
 최초 조치 등록(`add_incident_resolution`)만 지원한다. 기존 장애·대응·조치의 수정과 삭제는
-실행 범위에 없으며 웹 화면에서 처리하도록 안내한다. 엑셀 행은 사용자가 지정한 건만 초안 검토를
+실행 범위에 없으며 웹 화면에서 처리하도록 안내한다. 엑셀 행은 사용자가 지정한 건만 점검·판단을
 거쳐 한 건씩 순서대로 등록한다. 비교 결과만 보고 여러 건을 자동으로 일괄 등록하는 것은 보류 상태다.
 
 ## 연결과 권한

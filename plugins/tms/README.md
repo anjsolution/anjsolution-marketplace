@@ -78,13 +78,12 @@ MCP 서버는 사용자별 권한과 OAuth 승인 범위 안에서 도구를 제
 
 ## 상태
 
-incidents는 짧은 SKILL.md와 조회·분석·엑셀 비교·쓰기 공통·신규 등록·대응/조치 등록·엑셀 행 등록 references로 구성됩니다.
-`incidents/scripts/excel_history.py`(비교·초안 추출·재판정·셀 수정)와 `excel_targets.py`(본부·터널명 원문 →
-공개 식별자 매핑)는 Python 3와 openpyxl을 씁니다.
+incidents는 짧은 SKILL.md와 조회·분석·엑셀 비교·엑셀 점검·쓰기 공통·신규 등록·대응/조치 등록·엑셀 행 등록 references로 구성됩니다.
+장애 history 엑셀 도구는 `incidents/scripts/history_*.py`입니다(Python 3와 openpyxl).
+비교(`history_compare`), 원본 추출(`history_extract`), 매핑·판정(`history_map`), 검증(`history_validate`),
+셀 수정(`history_fix`) 명령과 공용 모듈(`history_workbook`·`history_rules`·`history_targets`)로 나뉩니다.
 도구 설명과 입력 스키마는 MCP가 제공하고 references는 업무 진행·복구 절차를 설명합니다.
 `incidents/scripts/generate_uuid.py`는 Python 3로 UUID 하나만 출력합니다. 저장·상태 관리는
 포함하지 않으며, 요청 기록은 쓰기 공통 문서에 따라 실행 환경의 파일 기능으로 보관합니다.
-`incidents/scripts/excel_history.py`는 장애 history 엑셀을 원격 조회 결과와 비교하고, 요청 시
-장애코드·조치코드 셀만 백업 후 수정합니다(openpyxl 필요).
 
 TTMS 설치 처리와 엑셀 행 일괄 등록은 별도로 반영합니다.
