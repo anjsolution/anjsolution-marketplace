@@ -37,7 +37,7 @@ node skills/hwpx/scripts/hwpx.mjs export <서식.hwpx> <값.json> -o <결과.pdf
 
 ### TTMS 구축 자료 제작 (임시 — TTMS 구축 전용 플러그인으로 이전 예정)
 
-**3-1. 서버 입고(공장 검수)·자재 납품 사진대지** — "현장 사진으로 사진대지 만들어줘"
+**3-1. 서버 입고(공장 검수)·서버 납품 사진대지** — "현장 사진으로 사진대지 만들어줘"
 - 시작점: `skills/manage/references/ttms_construction_project/ttms_photo_doc_make.md` — 사진 분석 → 방문(시간대·위치)별 묶기 → 설명 달기 → 템플릿 선택(단일/이중화) → hwpx 채우기
 - 필요한 사진·순서·이중화 규칙: `ttms_photo_doc_types.md`
 - 템플릿: `skills/manage/templates/ttms_construction_project/` (입고·납품 × 단일/이중화)
