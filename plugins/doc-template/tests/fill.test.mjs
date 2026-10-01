@@ -188,8 +188,14 @@ test('EXIF 6 사진은 90도 회전 속성', async () => {
   writeFileSync(join(dir, 'v.jpg'), makeJpeg(400, 300, 6))
   const bytes = await makeHwpx({ sections: [cellTable('{{사진}}')] })
   const { bytes: out, report } = await fill(bytes, { values: { 사진: 'v.jpg' } }, { baseDir: dir })
-  assert.match(await section0(out), /<hp:rotationInfo angle="90"/)
+  const xml = /<hp:pic .*<\/hp:pic>/s.exec(await section0(out))[0]
+  assert.match(xml, /<hp:rotationInfo angle="90"/)
   assert.equal(report.images[0].angle, 90)
+  // 회전 후 차지하는 크기(sz)는 세로로 길고, 회전 전 크기(curSz)는 가로로 길다 (한글 실측, Task 8)
+  const [, cw, ch] = /<hp:curSz width="(\d+)" height="(\d+)"/.exec(xml).map(Number)
+  const [, sw, sh] = /<hp:sz width="(\d+)" [^>]*height="(\d+)"/.exec(xml).map(Number)
+  assert.ok(sh > sw, `sz 는 세로로 길어야 함: ${sw}x${sh}`)
+  assert.deepEqual([cw, ch], [sh, sw])
 })
 
 test('상대 경로는 값 파일 기준(baseDir)', async () => {

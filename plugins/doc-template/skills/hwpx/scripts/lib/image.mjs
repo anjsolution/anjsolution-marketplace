@@ -70,6 +70,14 @@ export function fitBox({ boxW, boxH, imgW, imgH, maxW, maxH }) {
   return { w: Math.floor(imgW * s), h: Math.floor(imgH * s) }
 }
 
+// 회전 그림의 크기 규칙 (한글·kordoc 실측, Task 8):
+// - curSz·rotationInfo 중심 = 회전 전 그림 크기 (dispW/dispH 를 90°/270° 면 바꾼 값)
+// - sz = 회전 후 차지하는 크기 (= dispW × dispH). 한글은 이 상자로 배치하고 그림을 회전해 그린다.
+//   sz 를 회전 전 크기로 두면 한글에서 그림이 왼쪽으로 밀려 셀 밖으로 잘린다.
+// - kordoc 은 회전 속성을 무시하고 sz 상자에 그림을 그리며, 브라우저가 JPEG EXIF 방향을
+//   적용하므로 sz 가 회전 후 크기여야 똑바로·비율대로 보인다.
+// - rotMatrix 는 회전 전 그림의 중심(cx,cy)을 sz 상자의 중심으로 옮기는 회전이다. 한글은 이 이동
+//   성분까지 써서 그리므로, 0 으로 두면 원점 기준 회전이 되어 180° 나 세로 저장 + 90° 사진이 셀 밖으로 밀린다.
 export function buildPicXml({ id, instid, binId, pxW, pxH, dispW, dispH, angle }) {
   const swap = angle === 90 || angle === 270
   const w = swap ? dispH : dispW         // 회전 전 그림 크기
@@ -79,20 +87,25 @@ export function buildPicXml({ id, instid, binId, pxW, pxH, dispW, dispH, angle }
   const rad = (angle * Math.PI) / 180
   const cos = Math.round(Math.cos(rad) * 1e6) / 1e6
   const sin = Math.round(Math.sin(rad) * 1e6) / 1e6
+  const cx = Math.floor(w / 2)
+  const cy = Math.floor(h / 2)
+  const tx = angle ? Math.round(dispW / 2 - cos * cx + sin * cy) : 0
+  const ty = angle ? Math.round(dispH / 2 - sin * cx - cos * cy) : 0
+  const n = (v) => (Object.is(v, -0) ? 0 : v)   // "-0" 을 쓰지 않게
   return (
     `<hp:pic id="${id}" zOrder="0" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${instid}" reverse="0">` +
     `<hp:offset x="0" y="0"/><hp:orgSz width="${orgW}" height="${orgH}"/><hp:curSz width="${w}" height="${h}"/>` +
     '<hp:flip horizontal="0" vertical="0"/>' +
-    `<hp:rotationInfo angle="${angle}" centerX="${Math.floor(w / 2)}" centerY="${Math.floor(h / 2)}" rotateimage="1"/>` +
+    `<hp:rotationInfo angle="${angle}" centerX="${cx}" centerY="${cy}" rotateimage="1"/>` +
     '<hp:renderingInfo><hc:transMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/>' +
     `<hc:scaMatrix e1="${w / orgW}" e2="0" e3="0" e4="0" e5="${h / orgH}" e6="0"/>` +
-    `<hc:rotMatrix e1="${cos}" e2="${-sin}" e3="0" e4="${sin}" e5="${cos}" e6="0"/></hp:renderingInfo>` +
+    `<hc:rotMatrix e1="${n(cos)}" e2="${n(-sin)}" e3="${n(tx)}" e4="${n(sin)}" e5="${n(cos)}" e6="${n(ty)}"/></hp:renderingInfo>` +
     `<hc:img binaryItemIDRef="${binId}" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/>` +
     `<hp:imgRect><hc:pt0 x="0" y="0"/><hc:pt1 x="${orgW}" y="0"/><hc:pt2 x="${orgW}" y="${orgH}"/><hc:pt3 x="0" y="${orgH}"/></hp:imgRect>` +
     `<hp:imgClip left="0" right="${orgW}" top="0" bottom="${orgH}"/>` +
     '<hp:inMargin left="0" right="0" top="0" bottom="0"/>' +
     `<hp:imgDim dimwidth="${orgW}" dimheight="${orgH}"/><hp:effects/>` +
-    `<hp:sz width="${w}" widthRelTo="ABSOLUTE" height="${h}" heightRelTo="ABSOLUTE" protect="0"/>` +
+    `<hp:sz width="${dispW}" widthRelTo="ABSOLUTE" height="${dispH}" heightRelTo="ABSOLUTE" protect="0"/>` +
     '<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="PARA" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>' +
     '<hp:outMargin left="0" right="0" top="0" bottom="0"/></hp:pic>'
   )
