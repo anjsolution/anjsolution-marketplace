@@ -1,6 +1,7 @@
 # ttms_construction_project 템플릿
 
 TTMS 서버 구매(설치포함) 공사 서류용 HWPX 서식 모음. `hwpx` 스킬(`hwpx.mjs fill|export`)로 `{{키}}` 를 채운다.
+각 템플릿의 이름·별칭·용도·페이지별 `{{}}` 목록은 **`templates.json`** 이 기준이다(템플릿을 고치면 `scripts/template-meta.mjs sync` 로 갱신).
 사진대지는 값 JSON 의 `pages` 로 1쪽(서버 표) 1번 + 2쪽(사진 2장 대지)을 사진 수만큼 반복해 구성한다.
 
 ## 업무 코드 요약
