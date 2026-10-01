@@ -10,8 +10,8 @@ description: 양식·사진 관리 도우미. 사진 여러 장의 촬영 날짜
 
 ## 참고 문서
 - `references/analyze_image.md` — 사진 폴더·파일의 촬영 날짜·위치·크기·용량 분석: 언제 쓰나, 실행법, 결과 읽는 법, 주의점
-- `references/ttms_construction_project/location_data_from_photos.md` — 현장 사진의 GPS·촬영 시각으로 방문 목록을 만들고 방문마다 장소를 확인받는 절차(선택: 주소 변환)
-- `references/ttms_construction_project/photo_sheet_types.md` — 사진대지 종류(서버 입고·납품)별 장소·필수 사진·촬영 순서와 과거 문서에서 확인한 것
-- `references/ttms_construction_project/make_photo_sheet.md` — 현장 사진을 분석·묶기·설명한 뒤 hwpx 스킬로 사진대지를 만드는 절차. 설치 장소(관리동·지사·본부·○○청 서버실 등) 등록·위치 검토는 제공 예정
+- `references/ttms_construction_project/ttms_photo_doc_location_data.md` — 현장 사진의 GPS·촬영 시각으로 방문 목록을 만들고 방문마다 장소를 확인받는 절차(선택: 주소 변환)
+- `references/ttms_construction_project/ttms_photo_doc_types.md` — 사진대지 종류(서버 입고·납품)별 장소·필수 사진·촬영 순서와 과거 문서에서 확인한 것
+- `references/ttms_construction_project/ttms_photo_doc_make.md` — 현장 사진을 분석·묶기·설명한 뒤 hwpx 스킬로 사진대지를 만드는 절차. 설치 장소(관리동·지사·본부·○○청 서버실 등) 등록·위치 검토는 제공 예정
 
 `references/ttms_construction_project/` 는 TTMS 구축 전용 기능의 임시 위치로, TTMS 구축 전용 플러그인으로 이전 예정이다(폴더 안 `README.md`).

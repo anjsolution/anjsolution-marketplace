@@ -51,9 +51,9 @@ TTMS 구축 현장 사진의 GPS·촬영 시각으로 "언제 어디에 다녀�
 node skills/manage/scripts/ttms_construction_project/photo-visits.mjs <사진 폴더|파일> ... [-r] [--gap-min 60] [--radius-m 500] [--geocode kakao|vworld] [--json]
 ```
 
-- 절차는 `skills/manage/references/ttms_construction_project/location_data_from_photos.md`.
+- 절차는 `skills/manage/references/ttms_construction_project/ttms_photo_doc_location_data.md`.
 
-**현장 사진으로 사진대지 만들기** (`references/ttms_construction_project/make_photo_sheet.md`): 사진 분석 → 방문(시간대·위치)별 묶기 → 설명 달기 → hwpx 사진대지 채우기. 관리동 등록·위치 검토·좌표 채우기는 제공 예정.
+**현장 사진으로 사진대지 만들기** (`references/ttms_construction_project/ttms_photo_doc_make.md`): 사진 분석 → 방문(시간대·위치)별 묶기 → 설명 달기 → hwpx 사진대지 채우기. 관리동 등록·위치 검토·좌표 채우기는 제공 예정.
 
 ## 서식 작성 방법 요약
 

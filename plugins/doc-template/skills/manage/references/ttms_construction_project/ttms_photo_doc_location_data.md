@@ -1,9 +1,9 @@
 ---
-name: ttms_construction_project/location_data_from_photos
+name: ttms_construction_project/ttms_photo_doc_location_data
 description: TTMS 구축 현장(터널 관리동, 지사·본부·○○청 서버실 등)에서 찍은 원본 사진의 GPS·촬영 시각으로 "언제 어디에 다녀왔는지" 방문 목록을 만들고, 방문마다 장소를 사용자에게 확인받아 방문 → 장소 표를 만든다. 트리거 — "어디 다녀왔는지 사진으로 정리", "관리동 방문 기록", "서버실 방문 기록", "현장 사진 위치로 방문 목록", "사진으로 관리동 좌표 확인". 쓰지 않는 경우 — 사진 메타데이터만 보는 일(analyze_image), 양식에 사진을 채워 문서를 만드는 일(hwpx 스킬), 사진 편집·압축·이름 변경.
 ---
 
-# 현장 사진으로 방문 기록 정리 (ttms_construction_project/location_data_from_photos)
+# 현장 사진으로 방문 기록 정리 (ttms_construction_project/ttms_photo_doc_location_data)
 
 > **임시 위치 — TTMS 구축 전용 플러그인으로 이전 예정.** 지금은 doc-template 의 manage 스킬 안에 있다.
 > 이전할 때는 `references/ttms_construction_project/` 와 `scripts/ttms_construction_project/` 폴더를 함께 옮기고, `photo-visits.mjs` 가 import 하는 `scripts/analyze-image.mjs` 도 같이 옮긴다.
