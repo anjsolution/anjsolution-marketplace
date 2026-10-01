@@ -53,6 +53,8 @@ node skills/manage/scripts/ttms_construction_project/photo-visits.mjs <사진 �
 
 - 절차는 `skills/manage/references/ttms_construction_project/location_data_from_photos.md`.
 
+**현장 사진으로 사진대지 만들기** (`references/ttms_construction_project/make_photo_sheet.md`): 사진 분석 → 방문(시간대·위치)별 묶기 → 설명 달기 → hwpx 사진대지 채우기. 관리동 등록·위치 검토·좌표 채우기는 제공 예정.
+
 ## 서식 작성 방법 요약
 
 - 한글에서 `{{필드명}}` 을 **한 번에 이어서** 타이핑한다(중간에 서식을 바꾸면 토큰이 쪼개진다).
