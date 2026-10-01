@@ -19,7 +19,11 @@ function parse(argv) {
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]
     if (a === '--json') opt.json = true
-    else if (a === '-o' || a === '--hwpx') { opt[a === '-o' ? 'out' : 'hwpx'] = rest[++i] }
+    else if (a === '-o' || a === '--hwpx') {
+      const v = rest[++i]
+      if (v === undefined || v.startsWith('-')) throw new UsageError(`${a} 뒤에 값이 필요합니다.`)
+      opt[a === '-o' ? 'out' : 'hwpx'] = v
+    }
     else pos.push(a)
   }
   const need = { scan: 1, pages: 1, fill: 2, export: 2 }[cmd]
@@ -79,7 +83,10 @@ export async function main(argv) {
     } else {
       const { renderSvg, svgToPdf, closeBrowser } = await import('./export.mjs')
       try {
-        if (opt.hwpx) { writeFileSync(opt.hwpx, out); saved.push(resolve(opt.hwpx)) }
+        if (opt.hwpx) {
+          writeFileSync(opt.hwpx, out); saved.push(resolve(opt.hwpx))
+          console.error(`저장: ${resolve(opt.hwpx)} (PDF 변환 전)`)
+        }
         const { svg } = await renderSvg(out)
         writeFileSync(opt.out, await svgToPdf(svg)); saved.push(resolve(opt.out))
       } finally { await closeBrowser() }

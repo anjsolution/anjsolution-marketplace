@@ -17,7 +17,6 @@ export async function renderSvg(bytes) {
 }
 
 const CHROME_CANDIDATES = [
-  process.env.CHROME_PATH,
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -25,11 +24,17 @@ const CHROME_CANDIDATES = [
   '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
   '/usr/bin/google-chrome',
   '/usr/bin/chromium',
-].filter(Boolean)
+]
+
+const NO_BROWSER = 'PDF 를 만들 브라우저(Edge/Chrome)를 찾을 수 없습니다. CHROME_PATH 로 지정하거나, hwpx 는 fill 로 받으세요.'
+
+function chromeCandidates() {
+  return [process.env.CHROME_PATH, ...CHROME_CANDIDATES].filter((p) => p && existsSync(p))
+}
 
 export function findChrome() {
-  const hit = CHROME_CANDIDATES.find((p) => existsSync(p))
-  if (!hit) throw new Error('PDF 를 만들 브라우저(Edge/Chrome)를 찾을 수 없습니다. CHROME_PATH 로 지정하거나, hwpx 는 fill 로 받으세요.')
+  const hit = chromeCandidates()[0]
+  if (!hit) throw new Error(NO_BROWSER)
   return hit
 }
 
@@ -38,12 +43,24 @@ export function findChrome() {
 // 죽은 인스턴스를 계속 붙들면 이후 모든 PDF 요청이 실패하므로 살아 있는지 보고 다시 띄운다.
 let browserPromise = null
 
-const launch = () =>
-  puppeteer.launch({
-    executablePath: findChrome(),
-    headless: true,
-    args: ['--no-sandbox', '--disable-dev-shm-usage'],
-  })
+// 존재하는 후보를 순서대로 시도한다. 파일은 있어도 기동에 실패하는 브라우저(스텁 등)가 있기 때문이다.
+async function launch() {
+  const found = chromeCandidates()
+  if (!found.length) throw new Error(NO_BROWSER)
+  let last
+  for (const executablePath of found) {
+    try {
+      return await puppeteer.launch({
+        executablePath,
+        headless: true,
+        args: ['--no-sandbox', '--disable-dev-shm-usage'],
+      })
+    } catch (e) {
+      last = e
+    }
+  }
+  throw new Error(`브라우저 기동 실패 (시도: ${found.join(', ')}): ${last?.message?.split('\n')[0]}`)
+}
 
 async function getBrowser() {
   if (browserPromise) {
@@ -118,9 +135,12 @@ export async function svgToPdf(svg) {
 }
 
 export async function closeBrowser() {
-  if (browserPromise) {
-    const b = await browserPromise
-    browserPromise = null
-    await b.close()
+  if (!browserPromise) return
+  const pending = browserPromise
+  browserPromise = null
+  try {
+    await (await pending).close()
+  } catch {
+    /* 기동 실패·이미 종료된 브라우저는 닫을 것이 없다 */
   }
 }

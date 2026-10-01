@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeHwpx, p, cellTable, secPrRun, makePng } from './helpers/make-hwpx.mjs'
 
@@ -57,4 +57,41 @@ test('없는 사진은 종료 코드 1', async () => {
 test('사용법 오류는 종료 코드 2', () => {
   assert.equal(run('nope').status, 2)
   assert.equal(run('fill', 'a.hwpx').status, 2)
+})
+
+test('-o 값이 없으면 종료 코드 2', () => {
+  assert.equal(run('fill', 'a.hwpx', 'v.json', '-o').status, 2)
+  assert.equal(run('export', 'a.hwpx', 'v.json', '-o', 'x.pdf', '--hwpx').status, 2)
+})
+
+test('fill --json 은 {saved, report} 를 낸다', async () => {
+  const dir = await setup()
+  writeFileSync(join(dir, 'v.json'), JSON.stringify({ values: { 공사명: 'P' } }))
+  const out = join(dir, 'o.hwpx')
+  const r = run('fill', join(dir, 't.hwpx'), join(dir, 'v.json'), '-o', out, '--json')
+  assert.equal(r.status, 0, r.stderr)
+  const j = JSON.parse(r.stdout)
+  assert.deepEqual(j.saved, [resolve(out)])
+  assert.equal(j.report.filled['공사명'], 1)
+  assert.ok(Array.isArray(j.report.missing))
+})
+
+test('CHROME_PATH 가 기동 불가 파일이어도 다음 브라우저로 넘어간다', async (t) => {
+  const { findChrome, svgToPdf, closeBrowser } = await import('../skills/hwpx/scripts/lib/export.mjs')
+  const prev = process.env.CHROME_PATH
+  delete process.env.CHROME_PATH
+  let real
+  try { real = findChrome() } catch { t.skip('브라우저 없음'); return }
+  const dir = mkdtempSync(join(tmpdir(), 'hwpx-bogus-'))
+  const bogus = join(dir, 'fake-chrome.exe')
+  writeFileSync(bogus, 'not a browser')
+  process.env.CHROME_PATH = bogus
+  try {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 595 842"><g data-page="1"><rect width="10" height="10"/></g></svg>'
+    const pdf = await svgToPdf(svg)
+    assert.equal(Buffer.from(pdf.subarray(0, 4)).toString(), '%PDF')
+  } finally {
+    await closeBrowser()
+    if (prev === undefined) delete process.env.CHROME_PATH; else process.env.CHROME_PATH = prev
+  }
 })
