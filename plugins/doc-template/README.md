@@ -1,6 +1,6 @@
 # doc-template
 
-저장된 문서 양식에 값을 채워 문서를 만들어 주는 플러그인이다. v0.1.0 은 한글 양식용 `hwpx` 스킬과 사진 분석용 `manage` 스킬을 제공한다.
+저장된 문서 양식에 값을 채워 문서를 만들어 주는 플러그인이다. v0.1.0 은 한글 양식용 `hwpx` 스킬과 사진 분석·방문 기록용 `manage` 스킬을 제공한다.
 `{{필드}}` 자리와 사진 자리에 값·사진을 채워 hwpx 와 PDF 를 만들고, 원본 페이지를 골라 반복할 수 있다(사진대지 등).
 
 ## 설치
@@ -42,6 +42,16 @@ node skills/manage/scripts/analyze-image.mjs <사진 폴더|파일> ... [--list 
 - 없는 정보는 "없음"으로만 표시한다(파일명·수정 시각으로 추측하지 않는다). 카카오톡으로 받은 사진은 날짜·위치가 지워져 있는 경우가 많다.
 - 위치(GPS)는 민감 정보라 사용자가 요청하지 않으면 문서에 넣지 않는다.
 - 절차와 결과 해석은 `skills/manage/references/analyze_image.md`.
+
+### 현장 사진 방문 기록 (임시 위치)
+
+TTMS 구축 현장 사진의 GPS·촬영 시각으로 "언제 어디에 다녀왔는지" 방문 목록을 만들고, 방문마다 장소를 물어 확인한다("어디 다녀왔는지 사진으로 정리해줘"). 주소 변환(카카오·VWorld)은 선택이며 사용자 동의 후에만 쓴다. TTMS 구축 전용 플러그인으로 이전 예정이라 `ttms_construction_project/` 폴더로 모아 두었다.
+
+```bash
+node skills/manage/scripts/ttms_construction_project/photo-visits.mjs <사진 폴더|파일> ... [-r] [--gap-min 60] [--radius-m 500] [--geocode kakao|vworld] [--json]
+```
+
+- 절차는 `skills/manage/references/ttms_construction_project/image_doc.md`.
 
 ## 서식 작성 방법 요약
 
