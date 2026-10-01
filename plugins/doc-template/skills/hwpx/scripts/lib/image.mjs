@@ -12,9 +12,10 @@ function jpegInfo(b) {
     if (marker === 0xd9) break
     const len = b.readUInt16BE(i + 2)
     if (marker === 0xe1 && b.toString('binary', i + 4, i + 10) === 'Exif\0\0') {
-      orientation = exifOrientation(b.subarray(i + 10, i + 2 + len)) ?? orientation
+      try { orientation = exifOrientation(b.subarray(i + 10, Math.min(i + 2 + len, b.length))) ?? orientation } catch { /* 손상된 EXIF 는 방향 1 */ }
     }
     if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+      if (i + 9 > b.length) break
       return { type: 'jpg', width: b.readUInt16BE(i + 7), height: b.readUInt16BE(i + 5), orientation }
     }
     i += 2 + len
@@ -27,7 +28,8 @@ function exifOrientation(t) {
   const u16 = (o) => (le ? t.readUInt16LE(o) : t.readUInt16BE(o))
   const u32 = (o) => (le ? t.readUInt32LE(o) : t.readUInt32BE(o))
   const ifd = u32(4)
-  const n = u16(ifd)
+  if (ifd + 2 > t.length) return null
+  const n = Math.min(u16(ifd), Math.floor((t.length - ifd - 2) / 12))
   for (let k = 0; k < n; k++) {
     const e = ifd + 2 + k * 12
     if (u16(e) === 0x0112) return u16(e + 8)
@@ -36,6 +38,12 @@ function exifOrientation(t) {
 }
 
 export function readImageInfo(b) {
+  const info = sniffImage(b)
+  if (!(info.width > 0 && info.height > 0)) throw new Error('지원하지 않는 이미지 형식입니다 (가로·세로 크기가 0 이하).')
+  return info
+}
+
+function sniffImage(b) {
   if (b.length >= 24 && b.readUInt32BE(0) === 0x89504e47)
     return { type: 'png', width: b.readUInt32BE(16), height: b.readUInt32BE(20), orientation: 1 }
   if (b.length >= 4 && b[0] === 0xff && b[1] === 0xd8) return jpegInfo(b)

@@ -42,3 +42,28 @@ test('EXIF 6 은 90° + 가로세로 바꿔 맞춤', () => {
   assert.match(xml, /binaryItemIDRef="image1"/)
   assert.match(xml, /treatAsChar="1"/)
 })
+
+test('손상된 EXIF 블록은 던지지 않고 방향 1 로 처리', () => {
+  const sof = Buffer.alloc(17)
+  sof.writeUInt16BE(17, 0); sof[2] = 8; sof.writeUInt16BE(300, 3); sof.writeUInt16BE(400, 5); sof[7] = 3
+  const jpegWith = (tiff) => {
+    const body = Buffer.concat([Buffer.from('Exif\0\0', 'binary'), tiff])
+    const len = Buffer.alloc(2); len.writeUInt16BE(body.length + 2)
+    return Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe1]), len, body, Buffer.from([0xff, 0xc0]), sof, Buffer.from([0xff, 0xd9])])
+  }
+  // IFD 오프셋이 블록 밖
+  const badOffset = Buffer.alloc(8); badOffset.write('MM', 0); badOffset.writeUInt16BE(42, 2); badOffset.writeUInt32BE(0xfffffff0, 4)
+  assert.deepEqual(readImageInfo(jpegWith(badOffset)), { type: 'jpg', width: 400, height: 300, orientation: 1 })
+  // 항목 수만 크고 내용이 잘림
+  const trunc = Buffer.alloc(10); trunc.write('MM', 0); trunc.writeUInt16BE(42, 2); trunc.writeUInt32BE(8, 4); trunc.writeUInt16BE(500, 8)
+  assert.equal(readImageInfo(jpegWith(trunc)).orientation, 1)
+  // 너무 짧은 블록
+  assert.equal(readImageInfo(jpegWith(Buffer.from('MM'))).orientation, 1)
+})
+
+test('가로·세로가 0 이하이면 거부', () => {
+  assert.throws(() => readImageInfo(makePng(0, 10)), /지원하지 않는/)
+  assert.throws(() => readImageInfo(makeJpeg(400, 0)), /지원하지 않는/)
+  const gif = Buffer.from('GIF89a\0\0\x05\0', 'binary')
+  assert.throws(() => readImageInfo(gif), /지원하지 않는/)
+})

@@ -2,7 +2,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fill } from '../skills/hwpx/scripts/lib/fill.mjs'
 import { readHwpx, readText } from '../skills/hwpx/scripts/lib/package.mjs'
-import { makeHwpx, p, cellTable, secPrRun } from './helpers/make-hwpx.mjs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { makeHwpx, p, cellTable, secPrRun, makePng, makeJpeg } from './helpers/make-hwpx.mjs'
 
 const section0 = async (bytes) => readText((await readHwpx(bytes)).zip, 'Contents/section0.xml')
 
@@ -142,4 +145,102 @@ test('상속 속성 이름 토큰은 값 없음으로 처리', async () => {
   assert.deepEqual(report.missing, ['constructor', 'toString'])
   const r2 = await fill(bytes, { values: {}, pages: [{ page: 1, values: {} }] })
   assert.deepEqual(r2.report.missing, ['constructor', 'toString'])
+})
+
+const objectIds = (xml) => [...xml.matchAll(/<hp:(?:tbl|pic) [^>]*>/g)]
+  .flatMap((t) => [...t[0].matchAll(/\s(?:id|instid)="(\d+)"/g)].map((m) => m[1]))
+const workdir = () => mkdtempSync(join(tmpdir(), 'hwpx-'))
+
+test('셀 안 이미지: 그림 삽입·BinData·매니페스트', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'a.png'), makePng(400, 200))
+  const bytes = await makeHwpx({ sections: [cellTable('{{사진-1}}', { width: 41000, height: 21000, margin: 500 })] })
+  const { bytes: out, report } = await fill(bytes, { values: { '사진-1': 'a.png' } }, { baseDir: dir })
+  const { zip } = await readHwpx(out)
+  const xml = await readText(zip, 'Contents/section0.xml')
+  assert.match(xml, /<hp:pic /)
+  assert.doesNotMatch(xml, /\{\{사진-1\}\}/)
+  assert.match(xml, /<hp:sz width="39200" [^>]*height="19600"/)
+  assert.ok(zip.file('BinData/image1.png'))
+  assert.match(await readText(zip, 'Contents/content.hpf'), /id="image1" href="BinData\/image1.png"/)
+  assert.equal(report.images[0].binId, 'image1')
+})
+
+test('hasMargin=0 이면 표 안쪽 여백(510/141)을 쓴다', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'a.png'), makePng(100, 100))
+  const bytes = await makeHwpx({ sections: [cellTable('{{사진}}', { width: 11020, height: 10282, hasMargin: 0 })] })
+  const { bytes: out } = await fill(bytes, { values: { 사진: 'a.png' } }, { baseDir: dir })
+  assert.match(await section0(out), /<hp:sz width="9800" [^>]*height="9800"/)
+})
+
+test('같은 파일은 BinData 하나를 공유', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'a.png'), makePng(10, 10))
+  const bytes = await makeHwpx({ sections: [cellTable('{{사진-1}}') + cellTable('{{사진-2}}')] })
+  const { bytes: out } = await fill(bytes, { values: { '사진-1': 'a.png', '사진-2': 'a.png' } }, { baseDir: dir })
+  const { zip } = await readHwpx(out)
+  assert.equal(Object.values(zip.files).filter((f) => !f.dir && f.name.startsWith('BinData/')).length, 1)
+})
+
+test('EXIF 6 사진은 90도 회전 속성', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'v.jpg'), makeJpeg(400, 300, 6))
+  const bytes = await makeHwpx({ sections: [cellTable('{{사진}}')] })
+  const { bytes: out, report } = await fill(bytes, { values: { 사진: 'v.jpg' } }, { baseDir: dir })
+  assert.match(await section0(out), /<hp:rotationInfo angle="90"/)
+  assert.equal(report.images[0].angle, 90)
+})
+
+test('상대 경로는 값 파일 기준(baseDir)', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'a.png'), makePng(10, 10))
+  const bytes = await makeHwpx({ sections: [cellTable('{{사진}}')] })
+  await assert.rejects(fill(bytes, { values: { 사진: 'a.png' } }, { baseDir: tmpdir() }), /이미지 파일이 없습니다/)
+  await fill(bytes, { values: { 사진: 'a.png' } }, { baseDir: dir })
+})
+
+test('이미지 키에 글자 값이면 텍스트로 채우고 경고', async () => {
+  const bytes = await makeHwpx({ sections: [p('{{사진 설명}}')] })
+  const { bytes: out, report } = await fill(bytes, { values: { '사진 설명': '박스 전체' } })
+  assert.match(await section0(out), /<hp:t>박스 전체<\/hp:t>/)
+  assert.match(report.warnings[0], /사진 설명/)
+})
+
+test('지원하지 않는 형식은 실패', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'x.png'), Buffer.from('not an image at all'))
+  const bytes = await makeHwpx({ sections: [cellTable('{{사진}}')] })
+  await assert.rejects(fill(bytes, { values: { 사진: 'x.png' } }, { baseDir: dir }), /지원하지 않는/)
+})
+
+test('셀 밖 문단 이미지는 본문 폭·절반 높이에 맞춘다', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'a.png'), makePng(1000, 100))
+  const bytes = await makeHwpx({ sections: [p('{{이미지}}', { head: secPrRun() })] })
+  const { bytes: out } = await fill(bytes, { values: { 이미지: 'a.png' } }, { baseDir: dir })
+  assert.match(await section0(out), /<hp:sz width="41669" [^>]*height="4166"/)
+})
+
+test('페이지 복사 + 페이지별 사진: 객체 id 가 겹치지 않는다', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'a.png'), makePng(10, 10))
+  writeFileSync(join(dir, 'b.png'), makePng(20, 10))
+  const { bytes: out } = await fill(await photoTemplate(), {
+    pages: [{ page: 1 }, { page: 2, values: { '사진-1': 'a.png' } }, { page: 2, values: { '사진-1': 'b.png' } }],
+  }, { baseDir: dir })
+  const xml = await section0(out)
+  assert.equal((xml.match(/<hp:pic /g) ?? []).length, 2)
+  const ids = objectIds(xml)
+  assert.ok(ids.length >= 4)
+  assert.equal(new Set(ids).size, ids.length)
+})
+
+test('서식에 아주 큰 기존 id 가 있어도 그림 id 가 겹치지 않는다', async () => {
+  const dir = workdir()
+  writeFileSync(join(dir, 'a.png'), makePng(10, 10))
+  const bytes = await makeHwpx({ sections: [cellTable('{{사진}}').replace('<hp:tbl id="1000"', '<hp:tbl id="2000000000"')] })
+  const { bytes: out } = await fill(bytes, { values: { 사진: 'a.png' } }, { baseDir: dir })
+  const ids = objectIds(await section0(out))
+  assert.equal(new Set(ids).size, ids.length)
 })
