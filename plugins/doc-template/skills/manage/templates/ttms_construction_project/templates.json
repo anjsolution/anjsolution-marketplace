@@ -1,0 +1,473 @@
+{
+  "schema": 1,
+  "templates": {
+    "server_delivery_photo_sheet.hwpx": {
+      "name": "서버 납품 사진대지",
+      "aliases": [
+        "자재 납품 사진대지",
+        "서버 설치 사진대지"
+      ],
+      "when": "설치 장소(관리동·지사·본부·○○청 서버실 등)에 서버 설치 후, 서버 1대",
+      "code": "4-2-1",
+      "guide": "references/ttms_construction_project/ttms_photo_doc_make.md",
+      "pages": [
+        {
+          "page": 1,
+          "fields": [
+            {
+              "name": "공사명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "S/N",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "표지·서버 표",
+          "repeat": false
+        },
+        {
+          "page": 2,
+          "fields": [
+            {
+              "name": "공사명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "사진-1",
+              "type": "image",
+              "count": 1
+            },
+            {
+              "name": "위치",
+              "type": "text",
+              "count": 2
+            },
+            {
+              "name": "내용-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "날짜",
+              "type": "text",
+              "count": 2
+            },
+            {
+              "name": "사진-2",
+              "type": "image",
+              "count": 1
+            },
+            {
+              "name": "내용-2",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "사진 2칸",
+          "repeat": true
+        }
+      ],
+      "sha256": "bce6c8c825c29b485347181b9b650676b708e74bdf3b42308ec2c434682c4cb8",
+      "updated": "2026-10-01"
+    },
+    "server_delivery_photo_sheet_dual.hwpx": {
+      "name": "서버 납품 사진대지 (이중화)",
+      "aliases": [
+        "자재 납품 사진대지 이중화",
+        "서버 설치 사진대지 이중화"
+      ],
+      "when": "서버 납품, 이중화 터널(서버 2대 Master/Slave)",
+      "code": "4-2-1",
+      "guide": "references/ttms_construction_project/ttms_photo_doc_make.md",
+      "variant_of": "server_delivery_photo_sheet.hwpx",
+      "pages": [
+        {
+          "page": 1,
+          "fields": [
+            {
+              "name": "공사명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "S/N-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명-2",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "S/N-2",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "표지·서버 표(2대)",
+          "repeat": false
+        },
+        {
+          "page": 2,
+          "fields": [
+            {
+              "name": "공사명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "사진-1",
+              "type": "image",
+              "count": 1
+            },
+            {
+              "name": "위치",
+              "type": "text",
+              "count": 2
+            },
+            {
+              "name": "내용-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "날짜",
+              "type": "text",
+              "count": 2
+            },
+            {
+              "name": "사진-2",
+              "type": "image",
+              "count": 1
+            },
+            {
+              "name": "내용-2",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "사진 2칸",
+          "repeat": true
+        }
+      ],
+      "sha256": "4560c9034fecf94304c5c0d575f71e7b6c01930e96fe1411279895d2a706e5b3",
+      "updated": "2026-10-01"
+    },
+    "server_photo_label.hwpx": {
+      "name": "사진촬영용 서버 납품 정보 종이",
+      "aliases": [
+        "서버 식별 종이",
+        "서버납품정보"
+      ],
+      "when": "서버 입고 촬영 때 출력해 박스에 붙이거나 올려 두고 함께 촬영. 단일=[1,3], 이중화=[2,3 Master,3 Slave]",
+      "code": "2-3-1",
+      "guide": "references/ttms_construction_project/ttms_photo_doc_types.md",
+      "pages": [
+        {
+          "page": 1,
+          "fields": [
+            {
+              "name": "연도",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "노선",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "구간",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "터널명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "비고",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "서버 1대 표",
+          "repeat": false
+        },
+        {
+          "page": 2,
+          "fields": [
+            {
+              "name": "연도",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "노선",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "구간",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "터널명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "비고-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명-2",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "비고-2",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "서버 2대 표",
+          "repeat": false
+        },
+        {
+          "page": 3,
+          "fields": [
+            {
+              "name": "노선",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "구간",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "품명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "S/N",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "비고",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "서버별 카드",
+          "repeat": true
+        }
+      ],
+      "sha256": "bd0176eab05a8f618fd772303d2c4e38e67fa9816cfa13ef803da3bbfcd46e34",
+      "updated": "2026-10-01"
+    },
+    "server_receiving_photo_sheet.hwpx": {
+      "name": "서버 입고 사진대지",
+      "aliases": [
+        "공장검수 사진대지",
+        "자재 입고 사진대지"
+      ],
+      "when": "서버가 회사(본사·개발팀 사무실)에 입고됐을 때, 서버 1대",
+      "code": "2-3-1",
+      "guide": "references/ttms_construction_project/ttms_photo_doc_make.md",
+      "pages": [
+        {
+          "page": 1,
+          "fields": [
+            {
+              "name": "공사명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "S/N",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "표지·서버 표",
+          "repeat": false
+        },
+        {
+          "page": 2,
+          "fields": [
+            {
+              "name": "공사명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "사진-1",
+              "type": "image",
+              "count": 1
+            },
+            {
+              "name": "위치",
+              "type": "text",
+              "count": 2
+            },
+            {
+              "name": "내용-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "날짜",
+              "type": "text",
+              "count": 2
+            },
+            {
+              "name": "사진-2",
+              "type": "image",
+              "count": 1
+            },
+            {
+              "name": "내용-2",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "사진 2칸",
+          "repeat": true
+        }
+      ],
+      "sha256": "a82873df7759f656209704125425c39139979a7e5951eb21a4119c44df10dd1c",
+      "updated": "2026-10-01"
+    },
+    "server_receiving_photo_sheet_dual.hwpx": {
+      "name": "서버 입고 사진대지 (이중화)",
+      "aliases": [
+        "공장검수 사진대지 이중화"
+      ],
+      "when": "서버 입고, 이중화 터널(서버 2대 Master/Slave)",
+      "code": "2-3-1",
+      "guide": "references/ttms_construction_project/ttms_photo_doc_make.md",
+      "variant_of": "server_receiving_photo_sheet.hwpx",
+      "pages": [
+        {
+          "page": 1,
+          "fields": [
+            {
+              "name": "공사명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "S/N-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "모델명-2",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "S/N-2",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "표지·서버 표(2대)",
+          "repeat": false
+        },
+        {
+          "page": 2,
+          "fields": [
+            {
+              "name": "공사명",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "사진-1",
+              "type": "image",
+              "count": 1
+            },
+            {
+              "name": "위치",
+              "type": "text",
+              "count": 2
+            },
+            {
+              "name": "내용-1",
+              "type": "text",
+              "count": 1
+            },
+            {
+              "name": "날짜",
+              "type": "text",
+              "count": 2
+            },
+            {
+              "name": "사진-2",
+              "type": "image",
+              "count": 1
+            },
+            {
+              "name": "내용-2",
+              "type": "text",
+              "count": 1
+            }
+          ],
+          "role": "사진 2칸",
+          "repeat": true
+        }
+      ],
+      "sha256": "8531702c28ee3e808f62384c5c40716d55d08fa9a5ed81981966f11297ff74b3",
+      "updated": "2026-10-01"
+    }
+  }
+}

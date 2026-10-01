@@ -39,6 +39,21 @@
         "본부",
         "지사"
       ]
+    },
+    {
+      "name": "doc-template",
+      "source": "./plugins/doc-template",
+      "description": "문서 양식(hwpx)의 {{필드}}·사진 자리에 값을 채워 hwpx·PDF 로 만들기 — 페이지 반복 지원",
+      "version": "0.1.0",
+      "keywords": [
+        "hwpx",
+        "한글",
+        "양식",
+        "서식",
+        "템플릿",
+        "사진대지",
+        "pdf"
+      ]
     }
   ]
 }
