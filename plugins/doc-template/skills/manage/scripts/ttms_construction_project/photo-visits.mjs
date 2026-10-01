@@ -69,7 +69,7 @@ export async function reverseGeocode(provider, lat, lon, { fetch: f = globalThis
     const d = (await res.json()).documents?.[0]
     return d?.road_address?.address_name || d?.address?.address_name || null
   }
-  const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lon},${lat}&format=json&type=both&key=${key}`
+  const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lon},${lat}&format=json&type=both&key=${encodeURIComponent(key)}`
   const res = await f(url)
   if (!res.ok) throw new Error(`VWorld 응답 오류 HTTP ${res.status}`)
   const body = (await res.json()).response
@@ -103,7 +103,7 @@ export async function main(argv, { fetch: f = globalThis.fetch, env = process.en
     if (a === '--json') json = true
     else if (a === '--recursive' || a === '-r') recursive = true
     else if (a === '--list' || a === '--gap-min' || a === '--radius-m' || a === '--geocode') {
-      if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) { io.error(`${a} 뒤에 값이 필요합니다.\n${USAGE}`); return 2 }
+      if (i + 1 >= argv.length || argv[i + 1].startsWith('-')) { io.error(`${a} 뒤에 값이 필요합니다.\n${USAGE}`); return 2 }
       const v = argv[++i]
       if (a === '--list') list = v
       else if (a === '--geocode') {
@@ -146,5 +146,5 @@ export async function main(argv, { fetch: f = globalThis.fetch, env = process.en
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main(process.argv.slice(2)).then((c) => { process.exitCode = c })
+  main(process.argv.slice(2)).then((c) => { process.exitCode = c }).catch((e) => { console.error(`예상하지 못한 오류: ${e.message}`); process.exitCode = 1 })
 }

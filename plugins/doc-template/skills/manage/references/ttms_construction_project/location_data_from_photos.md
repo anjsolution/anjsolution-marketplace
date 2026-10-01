@@ -1,9 +1,9 @@
 ---
-name: ttms_construction_project/image_doc
+name: ttms_construction_project/location_data_from_photos
 description: TTMS 구축 현장(관리동 등)에서 찍은 원본 사진의 GPS·촬영 시각으로 "언제 어디에 다녀왔는지" 방문 목록을 만들고, 방문마다 장소를 사용자에게 확인받아 방문 → 장소 표를 만든다. 트리거 — "어디 다녀왔는지 사진으로 정리", "관리동 방문 기록", "현장 사진 위치로 방문 목록", "사진으로 관리동 좌표 확인". 쓰지 않는 경우 — 사진 메타데이터만 보는 일(analyze_image), 양식에 사진을 채워 문서를 만드는 일(hwpx 스킬), 사진 편집·압축·이름 변경.
 ---
 
-# 현장 사진으로 방문 기록 정리 (ttms_construction_project/image_doc)
+# 현장 사진으로 방문 기록 정리 (ttms_construction_project/location_data_from_photos)
 
 > **임시 위치 — TTMS 구축 전용 플러그인으로 이전 예정.** 지금은 doc-template 의 manage 스킬 안에 있다.
 > 이전할 때는 `references/ttms_construction_project/` 와 `scripts/ttms_construction_project/` 폴더를 함께 옮기고, `photo-visits.mjs` 가 import 하는 `scripts/analyze-image.mjs` 도 같이 옮긴다.
@@ -37,7 +37,7 @@ Codex 에서는 이 스킬 폴더 기준 상대 경로 `scripts/ttms_constructio
 3. 주소 변환(`--geocode`)은 기본으로 쓰지 않는다. 사용자에게 **"방문 중심 좌표를 카카오(또는 VWorld)로 보내도 되나요?"** 를 묻고 동의한 뒤에만 쓴다. 보내는 것은 방문 중심 좌표뿐이며 키는 환경변수(`KAKAO_REST_KEY` / `VWORLD_KEY`)로 받는다. 키가 없으면 안내하고 끝낸다. 키를 git·문서에 적지 않는다. 한 방문의 변환이 실패하면 그 방문의 주소만 비고 나머지는 계속된다.
 4. 방문마다 장소를 묻는다. 한 번에 목록으로 보여 주고 답을 받는다.
    예: "9월 17일 10:12~11:40, 사진 14장(반경 80m), (주소) — 어느 관리동(또는 장소)에 다녀오셨나요?"
-5. 결과 표를 만든다: 방문 / 시각 / 장소(사용자 답) / 중심 좌표 / 사진 수 / 확인 여부. 사용자가 원하면 CSV·JSON 으로 저장한다.
+5. 결과 표를 만든다: 방문 / 시각 / 장소(사용자 답) / 중심 좌표 / 사진 수 / 확인 여부. 중심 좌표 열은 대화에서 보여 주기만 하고, 파일(CSV·JSON)로 저장하거나 문서에 넣는 것은 사용자가 요청할 때만 한다.
 6. 관리동 데이터(TMS·이관 JSON)에 넣는 일은 이 절차 밖이다. 표를 넘겨주고 끝낸다.
 
 ## 주의

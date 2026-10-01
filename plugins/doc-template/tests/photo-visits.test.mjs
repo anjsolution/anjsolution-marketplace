@@ -110,6 +110,8 @@ test('reverseGeocode vworld: URL, status OK 일 때 result[0].text', async () =>
   const f = async (url) => { calls.push(url); return jsonRes({ response: { status: 'OK', result: [{ text: '브이월드 주소' }] } }) }
   assert.equal(await reverseGeocode('vworld', 37.5, 128.5, { fetch: f, env: { VWORLD_KEY: 'V1' } }), '브이월드 주소')
   assert.equal(calls[0], 'https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=128.5,37.5&format=json&type=both&key=V1')
+  await reverseGeocode('vworld', 1, 2, { fetch: async (u) => { calls.push(u); return jsonRes({ response: { status: 'NOT_FOUND' } }) }, env: { VWORLD_KEY: 'a b&c' } })
+  assert.match(calls[1], /key=a%20b%26c$/)
   assert.equal(await reverseGeocode('vworld', 1, 2, { fetch: async () => jsonRes({ response: { status: 'NOT_FOUND' } }), env: { VWORLD_KEY: 'V' } }), null)
 })
 
@@ -210,14 +212,32 @@ test('CLI: 종료 코드 — 사용법 오류 2, 경로 없음 1, geocode 키 �
   assert.equal(run([]).status, 2)
   assert.equal(run(['--bogus']).status, 2)
   assert.equal(run(['--list']).status, 2)
+  assert.equal(run(['--list', '-r']).status, 2)
   const d = tmp(); photo(d, 'a.jpg', { date: '2026:09:17 10:00:00', lat: LAT, lon: LON })
   assert.equal(run([d, '--gap-min']).status, 2)
   assert.equal(run([d, '--gap-min', 'abc']).status, 2)
   assert.equal(run([d, '--radius-m', '-5']).status, 2)
   assert.equal(run([d, '--geocode']).status, 2)
+  assert.equal(run([d, '--geocode', '-r']).status, 2)
+  assert.equal(run([d, '--gap-min', '-r']).status, 2)
   assert.equal(run([d, '--geocode', 'google']).status, 2)
   assert.equal(run([join(tmpdir(), 'no-such-dir-xyz')]).status, 1)
   const r = run([d, '--geocode', 'kakao'])
   assert.equal(r.status, 1); assert.match(r.stderr, /KAKAO_REST_KEY/)
   assert.equal(run([d, '--geocode', 'vworld']).status, 1)
+})
+
+test('groupVisits: 거리는 첫 사진이 아니라 누적 중심 기준으로 본다', () => {
+  // 0m, 400m, 800m: 첫 사진 기준이면 800m 에서 갈라지지만 중심(200m) 기준 600m 라 radius 500 에서 갈라진다.
+  // 반대로 radius 700 이면 중심 기준(600m)으로 같은 방문이어야 한다(첫 사진 기준 800m 면 갈라짐).
+  const r = [mk('a', '2026-09-17 10:00:00', LAT, LON), mk('b', '2026-09-17 10:05:00', LAT + 400 * M, LON), mk('c', '2026-09-17 10:10:00', LAT + 800 * M, LON)]
+  assert.equal(groupVisits(r, { radiusM: 700 }).visits.length, 1)
+  assert.equal(groupVisits(r, { radiusM: 500 }).visits.length, 2)
+})
+
+test('groupVisits: 음수 시간대 표기(-05:00)가 붙은 시각도 정렬·간격 계산이 된다', () => {
+  const r = [mk('b', '2026-09-17 10:30:00 -05:00', LAT, LON), mk('a', '2026-09-17 10:00:00 -05:00', LAT, LON)]
+  const g = groupVisits(r)
+  assert.deepEqual(g.visits[0].files, ['a', 'b'])
+  assert.equal(g.visits[0].end, '2026-09-17 10:30:00')
 })

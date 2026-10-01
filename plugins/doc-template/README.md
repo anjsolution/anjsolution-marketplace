@@ -51,7 +51,7 @@ TTMS 구축 현장 사진의 GPS·촬영 시각으로 "언제 어디에 다녀�
 node skills/manage/scripts/ttms_construction_project/photo-visits.mjs <사진 폴더|파일> ... [-r] [--gap-min 60] [--radius-m 500] [--geocode kakao|vworld] [--json]
 ```
 
-- 절차는 `skills/manage/references/ttms_construction_project/image_doc.md`.
+- 절차는 `skills/manage/references/ttms_construction_project/location_data_from_photos.md`.
 
 ## 서식 작성 방법 요약
 

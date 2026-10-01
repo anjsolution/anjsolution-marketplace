@@ -10,4 +10,4 @@ description: 양식·사진 관리 도우미. 사진 여러 장의 촬영 날짜
 
 ## 참고 문서
 - `references/analyze_image.md` — 사진 폴더·파일의 촬영 날짜·위치·크기·용량 분석: 언제 쓰나, 실행법, 결과 읽는 법, 주의점
-- `references/ttms_construction_project/image_doc.md` — 현장 사진의 GPS·촬영 시각으로 방문 목록을 만들고 방문마다 장소를 확인받는 절차(선택: 주소 변환). 이 폴더는 임시 위치로, TTMS 구축 전용 플러그인으로 이전 예정
+- `references/ttms_construction_project/location_data_from_photos.md` — 현장 사진의 GPS·촬영 시각으로 방문 목록을 만들고 방문마다 장소를 확인받는 절차(선택: 주소 변환). 이 폴더는 임시 위치로, TTMS 구축 전용 플러그인으로 이전 예정
