@@ -12,6 +12,7 @@ TTMS 서버 구매(설치포함) 공사 서류용 HWPX 서식 모음. `hwpx` 스
 
 - 사진-n 은 이미지 키(파일 경로), 나머지는 텍스트 키다. `공사명`, `위치`, `날짜` 는 한 문서에 여러 번 나오며 같은 값으로 채워진다.
 - 이중화 변형은 1쪽 서버 표에 행을 하나 더 두었다 (1행 비고 `Master`, 2행 비고 `Slave`). 나머지 구성은 단일과 같다.
-- 원본(`2-3-1`, `4-2-1` 사진 대지 서식)은 `local/docs/ttms-install-project/templates/` 에 그대로 남아 있고, 여기 파일은 그 복사본(단일)과 파생본(이중화)이다.
+- 단일 파일은 사내 원본 서식(2-3-1 입고, 4-2-1 납품 사진 대지)의 복사본이고, 이중화 파일은 그 파생본이다.
+- 활용 절차는 `references/ttms_construction_project/ttms_photo_doc_make.md`, 이중화 규칙은 `ttms_photo_doc_types.md`.
 - 이 폴더는 이후 TTMS 전용 플러그인이 생기면 `ttms_construction_project` 폴더째 옮긴다.
 - 서식에는 직인·도장 등 이미지(BinData)가 없다. 사진은 채울 때만 들어간다.

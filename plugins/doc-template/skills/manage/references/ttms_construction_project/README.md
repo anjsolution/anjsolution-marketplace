@@ -1,6 +1,6 @@
 # ttms_construction_project — TTMS 구축 전용 기능 (임시 위치)
 
-이 폴더와 `scripts/ttms_construction_project/` 는 **TTMS 구축 업무에만 쓰는 기능**을 모아 둔 곳이다.
+이 폴더와 `scripts/ttms_construction_project/`, `templates/ttms_construction_project/` 는 **TTMS 구축 업무에만 쓰는 기능**을 모아 둔 곳이다.
 TTMS 구축 전용 플러그인이 생기면 **두 폴더를 통째로 그쪽으로 옮길 후보**이며, 그때까지 doc-template 의 manage 스킬 안에서 먼저 만들어 쓴다.
 
 범용 기능(사진 메타데이터 분석 `analyze_image`, 양식 채우기 `hwpx` 스킬)은 이 폴더에 두지 않는다. 여기 문서는 그 범용 기능을 TTMS 구축 업무 순서에 맞게 엮는다.
@@ -15,7 +15,7 @@ TTMS 구축 전용 플러그인이 생기면 **두 폴더를 통째로 그쪽으
 
 ## 옮길 때 체크리스트
 
-1. `references/ttms_construction_project/` 와 `scripts/ttms_construction_project/` 를 새 플러그인의 같은 자리로 옮긴다.
+1. `references/`·`scripts/`·`templates/` 아래 `ttms_construction_project/` 세 폴더를 새 플러그인의 같은 자리로 옮긴다.
 2. `photo-visits.mjs` 가 import 하는 `scripts/analyze-image.mjs` 를 함께 복사한다(플러그인끼리 파일을 참조하지 않는다).
 3. 이 폴더 문서의 실행 경로(`${CLAUDE_PLUGIN_ROOT}/skills/manage/...`)를 새 위치로 바꾼다.
 4. 사진대지 채우기는 계속 doc-template 의 `hwpx` 스킬을 호출한다(양식 채우기는 범용 기능으로 남는다).
