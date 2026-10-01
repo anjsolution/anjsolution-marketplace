@@ -23,13 +23,13 @@ function dataBytes(en, e) {
 const padded = (b) => (b.length % 2 ? Buffer.concat([b, Buffer.alloc(1)]) : b)
 
 // ifds: { ifd0: [...], exif: [...]|null, gps: [...]|null } → TIFF 바이트
-export function buildTiff(ifds, { le = true } = {}) {
+export function buildTiff(ifds, { le = true, ptrType = 4 } = {}) {
   const e = enc(le)
   const ifd0 = [...(ifds.ifd0 || [])]
   const exif = ifds.exif || null
   const gps = ifds.gps || null
-  if (exif) ifd0.push({ tag: 0x8769, type: 4, value: 'EXIFPTR' })
-  if (gps) ifd0.push({ tag: 0x8825, type: 4, value: 'GPSPTR' })
+  if (exif) ifd0.push({ tag: 0x8769, type: ptrType, value: 'EXIFPTR' })
+  if (gps) ifd0.push({ tag: 0x8825, type: ptrType, value: 'GPSPTR' })
   const lists = [['ifd0', ifd0]]
   if (exif) lists.push(['exif', exif])
   if (gps) lists.push(['gps', gps])

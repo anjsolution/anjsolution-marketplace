@@ -65,7 +65,8 @@ function rationalAt(r, en, i) {
 
 function exifDate(s) {
   const m = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/.exec(s || '')
-  return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}` : null
+  if (!m || +m[1] === 0 || +m[2] < 1 || +m[2] > 12 || +m[3] < 1 || +m[3] > 31) return null
+  return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`
 }
 
 function readGps(r, gps) {
@@ -77,8 +78,10 @@ function readGps(r, gps) {
   }
   let lat = dms(gps[2]), lon = dms(gps[4])
   if (lat == null || lon == null || !latRef || !lonRef) return null
-  if (latRef[0].toUpperCase() === 'S') lat = -lat
-  if (lonRef[0].toUpperCase() === 'W') lon = -lon
+  const la = latRef[0].toUpperCase(), lo = lonRef[0].toUpperCase()
+  if ((la !== 'N' && la !== 'S') || (lo !== 'E' && lo !== 'W')) return null
+  if (la === 'S') lat = -lat
+  if (lo === 'W') lon = -lon
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null
   let alt = rationalAt(r, gps[6], 0)
   if (alt != null && gps[5] && gps[5].type === 1 && r.buf[r.base + gps[5].pos] === 1) alt = -alt
@@ -95,15 +98,16 @@ function parseTiff(buf, base) {
     res.device = [make, model].filter(Boolean).join(' ') || null
     const o = shortOf(r, ifd0[0x0112])
     res.orientation = o >= 1 && o <= 8 ? o : null
-    if (ifd0[0x8769]) {
+    if (ifd0[0x8769]?.type === 4) {
       const exif = readIfd(r, r.u32(ifd0[0x8769].pos))
-      const t = exifDate(asciiOf(r, exif[0x9003])) || exifDate(asciiOf(r, exif[0x9004]))
+      const orig = exifDate(asciiOf(r, exif[0x9003]))
+      const t = orig || exifDate(asciiOf(r, exif[0x9004]))
       if (t) {
-        const off = asciiOf(r, exif[0x9011])
+        const off = asciiOf(r, exif[orig ? 0x9011 : 0x9012])
         res.taken_at = off && /^[+-]\d{2}:\d{2}$/.test(off) ? `${t} ${off}` : t
       }
     }
-    if (ifd0[0x8825]) res.gps = readGps(r, readIfd(r, r.u32(ifd0[0x8825].pos)))
+    if (ifd0[0x8825]?.type === 4) res.gps = readGps(r, readIfd(r, r.u32(ifd0[0x8825].pos)))
   } catch { /* 깨진 EXIF 는 null */ }
   return res
 }

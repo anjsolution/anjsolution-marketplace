@@ -14,7 +14,7 @@ const tmp = () => mkdtempSync(join(tmpdir(), 'analyze-img-'))
 const write = (dir, name, buf) => { const p = join(dir, name); writeFileSync(p, buf); return p }
 const dms = (d, m, s) => [[d, 1], [m, 1], [Math.round(s * 100), 100]]
 
-function exifJpeg({ le = true, orientation, date, digitized, offset, make, model, gps } = {}) {
+function exifJpeg({ le = true, orientation, date, digitized, offset, offsetDigitized, make, model, gps, ptrType } = {}) {
   const ifd0 = []
   if (make) ifd0.push(ascii(0x010f, make))
   if (model) ifd0.push(ascii(0x0110, model))
@@ -23,12 +23,13 @@ function exifJpeg({ le = true, orientation, date, digitized, offset, make, model
   if (date) exif.push(ascii(0x9003, date))
   if (digitized) exif.push(ascii(0x9004, digitized))
   if (offset) exif.push(ascii(0x9011, offset))
+  if (offsetDigitized) exif.push(ascii(0x9012, offsetDigitized))
   const g = gps ? [
     ascii(0x0001, gps.latRef), rationals(0x0002, dms(...gps.lat)),
     ascii(0x0003, gps.lonRef), rationals(0x0004, dms(...gps.lon)),
     ...(gps.alt != null ? [{ tag: 0x0005, type: 1, value: [gps.altRef || 0] }, rationals(0x0006, [[gps.alt * 10, 10]])] : []),
   ] : null
-  return makeJpeg({ tiff: buildTiff({ ifd0, exif: exif.length ? exif : null, gps: g }, { le }) })
+  return makeJpeg({ tiff: buildTiff({ ifd0, exif: exif.length ? exif : null, gps: g }, { le, ptrType }) })
 }
 
 test('JPEG 크기와 파일 크기', async () => {
@@ -202,4 +203,46 @@ test('CLI: 사진을 읽기만 한다 (수정 시각 불변)', () => {
   const t = new Date('2020-01-01T00:00:00Z'); utimesSync(p, t, t)
   run(d)
   assert.equal(statSync(p).mtime.getTime(), t.getTime())
+})
+
+test('DateTimeDigitized 를 쓸 때는 OffsetTimeDigitized 를 붙인다', async () => {
+  const d = tmp()
+  const r = await analyzeFile(write(d, 'a.jpg', exifJpeg({ digitized: '2023:01:02 03:04:05', offset: '+01:00', offsetDigitized: '+09:00' })))
+  assert.equal(r.taken_at, '2023-01-02 03:04:05 +09:00')
+  const r2 = await analyzeFile(write(d, 'b.jpg', exifJpeg({ digitized: '2023:01:02 03:04:05', offset: '+01:00' })))
+  assert.equal(r2.taken_at, '2023-01-02 03:04:05')
+})
+
+test('빈 날짜(0000:00:00 …)는 날짜 없음, Digitized 로 넘어가지 않고 유효한 쪽을 쓴다', async () => {
+  const d = tmp()
+  const a = await analyzeFile(write(d, 'a.jpg', exifJpeg({ date: '0000:00:00 00:00:00' })))
+  assert.equal(a.taken_at, null)
+  const b = await analyzeFile(write(d, 'b.jpg', exifJpeg({ date: '2024:00:12 01:02:03' })))
+  assert.equal(b.taken_at, null)
+  const c = await analyzeFile(write(d, 'c.jpg', exifJpeg({ date: '0000:00:00 00:00:00', digitized: '2023:01:02 03:04:05' })))
+  assert.equal(c.taken_at, '2023-01-02 03:04:05')
+})
+
+test('GPS 기준이 N/S, E/W 가 아니면 gps 는 null', async () => {
+  const d = tmp()
+  const bad1 = await analyzeFile(write(d, 'a.jpg', exifJpeg({ gps: { latRef: 'X', lat: [37, 0, 0], lonRef: 'E', lon: [128, 0, 0] } })))
+  assert.equal(bad1.gps, null)
+  const bad2 = await analyzeFile(write(d, 'b.jpg', exifJpeg({ gps: { latRef: 'N', lat: [37, 0, 0], lonRef: 'N', lon: [128, 0, 0] } })))
+  assert.equal(bad2.gps, null)
+})
+
+test('AltitudeRef 가 없으면 고도는 양수', async () => {
+  const d = tmp()
+  const buf = makeJpeg({ tiff: buildTiff({ ifd0: [], gps: [
+    ascii(0x0001, 'N'), rationals(0x0002, dms(37, 0, 0)), ascii(0x0003, 'E'), rationals(0x0004, dms(128, 0, 0)),
+    rationals(0x0006, [[500, 10]]),
+  ] }) })
+  const r = await analyzeFile(write(d, 'a.jpg', buf))
+  assert.equal(r.gps.alt, 50)
+})
+
+test('EXIF/GPS 포인터가 LONG 이 아니면 따라가지 않는다', async () => {
+  const d = tmp()
+  const r = await analyzeFile(write(d, 'a.jpg', exifJpeg({ ptrType: 3, date: '2024:12:12 15:27:27', gps: { latRef: 'N', lat: [37, 0, 0], lonRef: 'E', lon: [128, 0, 0] } })))
+  assert.equal(r.taken_at, null); assert.equal(r.gps, null)
 })
