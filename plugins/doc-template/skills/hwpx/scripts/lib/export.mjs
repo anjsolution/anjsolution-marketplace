@@ -6,7 +6,9 @@
  * reflow 경로로 재조판되며, 실측에서 한컴 출력과 페이지 수·줄바꿈
  * 위치가 일치했다.
  */
-import { existsSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { renderHwpxToSvg } from 'kordoc'
 import puppeteer from 'puppeteer-core'
 
@@ -42,21 +44,65 @@ export function findChrome() {
 // 다만 브라우저는 밖에서 죽을 수 있다(사용자가 프로세스를 종료, OOM 등).
 // 죽은 인스턴스를 계속 붙들면 이후 모든 PDF 요청이 실패하므로 살아 있는지 보고 다시 띄운다.
 let browserPromise = null
+// 브라우저 프로필 폴더는 직접 만들어 넘긴다. puppeteer 가 만든 임시 프로필은 브라우저 종료 때
+// puppeteer 가 지우는데, Windows 에서는 아직 잠긴 lockfile 때문에 EBUSY 가 나고 그 오류가
+// 잡을 수 없는 곳에서 던져져 프로세스가 죽는다(PDF 를 다 쓴 뒤에도 종료 코드 1). 직접 넘긴 폴더는
+// puppeteer 가 지우지 않으므로 closeBrowser 에서 재시도하며 지운다.
+let profileDir = null
+
+function removeProfile() {
+  if (!profileDir) return
+  try {
+    rmSync(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  } catch {
+    /* 지우지 못한 임시 폴더는 남겨 둔다 — PDF 결과에는 영향이 없다 */
+  }
+  profileDir = null
+}
+
+// 기동 "실패"로 보고된 브라우저가 실제로는 떠 있는 경우가 있다. Windows 의 Edge 는 실행 파일이
+// 곧바로 끝나고 진짜 브라우저를 따로 띄우므로 puppeteer 는 실패로 보지만, 헤드리스 Edge 가
+// 프로세스 트리째 남는다(Task 8 실측: export 한 번에 msedge 약 8개씩 누적). 그 브라우저가 프로필
+// 폴더에 남기는 DevToolsActivePort 로 붙어서 닫는다.
+async function closeOrphan(userDataDir) {
+  const portFile = join(userDataDir, 'DevToolsActivePort')
+  for (let i = 0; i < 30; i++) {
+    if (existsSync(portFile)) {
+      try {
+        const [port, path] = readFileSync(portFile, 'utf8').split(/\r?\n/)
+        if (port && path) {
+          const b = await puppeteer.connect({ browserWSEndpoint: `ws://127.0.0.1:${port}${path}` })
+          await b.close()
+          return
+        }
+      } catch {
+        /* 파일이 아직 쓰이는 중이거나 이미 종료됨 — 다시 본다 */
+      }
+    }
+    await new Promise((r) => setTimeout(r, 100))
+  }
+}
 
 // 존재하는 후보를 순서대로 시도한다. 파일은 있어도 기동에 실패하는 브라우저(스텁 등)가 있기 때문이다.
 async function launch() {
   const found = chromeCandidates()
   if (!found.length) throw new Error(NO_BROWSER)
   let last
+  removeProfile()
+  profileDir = mkdtempSync(join(tmpdir(), 'hwpx-pdf-profile-'))
   for (const executablePath of found) {
+    // 후보마다 새 하위 폴더 — 기동에 실패한 브라우저가 남긴 잠금을 다음 후보가 물려받지 않게
+    const userDataDir = mkdtempSync(join(profileDir, 'p-'))
     try {
       return await puppeteer.launch({
         executablePath,
+        userDataDir,
         headless: true,
         args: ['--no-sandbox', '--disable-dev-shm-usage'],
       })
     } catch (e) {
       last = e
+      await closeOrphan(userDataDir)
     }
   }
   throw new Error(`브라우저 기동 실패 (시도: ${found.join(', ')}): ${last?.message?.split('\n')[0]}`)
@@ -135,7 +181,7 @@ export async function svgToPdf(svg) {
 }
 
 export async function closeBrowser() {
-  if (!browserPromise) return
+  if (!browserPromise) return removeProfile()
   const pending = browserPromise
   browserPromise = null
   try {
@@ -143,4 +189,5 @@ export async function closeBrowser() {
   } catch {
     /* 기동 실패·이미 종료된 브라우저는 닫을 것이 없다 */
   }
+  removeProfile()
 }

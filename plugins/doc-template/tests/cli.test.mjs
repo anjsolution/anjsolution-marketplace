@@ -95,3 +95,23 @@ test('CHROME_PATH 가 기동 불가 파일이어도 다음 브라우저로 넘�
     if (prev === undefined) delete process.env.CHROME_PATH; else process.env.CHROME_PATH = prev
   }
 })
+
+// Windows 에서 puppeteer 가 자기 임시 프로필을 지우다 EBUSY 로 프로세스를 죽이는 일이 있었다 (Task 8 실측).
+// 프로필 폴더를 직접 만들어 넘기고, 닫을 때 우리가 지운다.
+test('PDF 브라우저 프로필은 직접 만든 임시 폴더를 쓰고 닫을 때 지운다', async (t) => {
+  const { findChrome, svgToPdf, closeBrowser } = await import('../skills/hwpx/scripts/lib/export.mjs')
+  try { findChrome() } catch { t.skip('브라우저 없음'); return }
+  const { readdirSync } = await import('node:fs')
+  const ours = () => readdirSync(tmpdir()).filter((n) => n.startsWith('hwpx-pdf-profile-'))
+  const before = new Set(ours())
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 595 842"><g data-page="1"><rect width="10" height="10"/></g></svg>'
+  let during
+  try {
+    await svgToPdf(svg)
+    during = ours().filter((n) => !before.has(n))
+  } finally {
+    await closeBrowser()
+  }
+  assert.equal(during.length, 1)
+  assert.ok(!existsSync(join(tmpdir(), during[0])), '닫은 뒤 프로필 폴더가 남아 있음')
+})
