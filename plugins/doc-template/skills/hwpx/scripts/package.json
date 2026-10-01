@@ -1,0 +1,12 @@
+{
+  "name": "doc-template-hwpx",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.8.10",
+    "jszip": "^3.10.1",
+    "kordoc": "4.13.1",
+    "puppeteer-core": "^23.11.1"
+  }
+}

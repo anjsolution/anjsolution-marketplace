@@ -20,3 +20,6 @@ __pycache__/
 
 # ebid 검색 결과 출력 폴더 (스킬이 생성)
 ebid-out/
+
+# doc-template 스크립트 의존성 (첫 실행 때 자동 설치)
+node_modules/
