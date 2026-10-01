@@ -15,6 +15,13 @@ description: TTMS 구축 현장 사진(입고·납품·설치 등)으로 사진�
 
 **이 문서만으로 바로 시작한다.** `ttms_photo_doc_types`(필요한 사진 목록)·`ttms_photo_doc_location_data`(위치·방문 정리)를 먼저 읽거나 실행할 필요는 없다. 아래 절차 중 필요한 단계에서만 그 문서를 참고한다 — 예: 필수 사진 확인이 필요할 때 types, 방문이 여러 곳일 때 location_data. 사용자가 사진·순서·설명을 이미 주었다면 해당 루틴은 건너뛰고 바로 채우기로 간다.
 
+## 실행 방법
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/skills/manage/scripts/analyze-image.mjs" <사진 폴더> -r --json
+node "${CLAUDE_PLUGIN_ROOT}/skills/manage/scripts/ttms_construction_project/photo-visits.mjs" <사진 폴더> -r --json
+```
+Codex 에서는 manage 스킬 폴더 기준 `scripts/analyze-image.mjs`, `scripts/ttms_construction_project/photo-visits.mjs` 로 실행한다. `hwpx` 스킬 명령은 `hwpx/SKILL.md` 의 실행 방법을 따른다.
+
 ## 쓰는 기능
 | 단계 | 기능 | 상태 |
 |---|---|---|
@@ -46,9 +53,9 @@ description: TTMS 구축 현장 사진(입고·납품·설치 등)으로 사진�
 ### 2. 동시에 시작 (A·B·C·D)
 
 **A. 사진 메타데이터 루틴 — 분석 → 묶기 → 장소 질문 준비** (이어지는 한 흐름)
-- `analyze-image.mjs <폴더> -r --json` — 장수, 촬영 시각·GPS 유무, 크기·용량. 5MB 넘는 사진이 많으면 문서가 커진다고 알린다(압축은 이후 manage 기능 예정).
+- 위 실행 방법의 `analyze-image.mjs <폴더> -r --json` — 장수, 촬영 시각·GPS 유무, 크기·용량. 5MB 넘는 사진이 많으면 문서가 커진다고 알린다(압축은 이후 manage 기능 예정).
 - 묶기:
-  - GPS·시각이 있으면 `photo-visits.mjs <폴더> -r --json` 의 방문(시간대 + 위치)으로 묶는다. 사용자가 사진 정보를 주지 않아도 이 JSON 으로 직접 묶는다.
+  - GPS·시각이 있으면 위 실행 방법의 `photo-visits.mjs <폴더> -r --json` 의 방문(시간대 + 위치)으로 묶는다. 사용자가 사진 정보를 주지 않아도 이 JSON 으로 직접 묶는다.
   - 시각만 있으면 촬영 시각순으로 놓고 시간 간격으로 나눈다.
   - 둘 다 없으면 파일 순서대로 두고 순서를 확인 질문에 넣는다.
 - 방문이 여러 곳이면 `ttms_photo_doc_location_data` 절차의 장소 질문("○월 ○일 ○시, 사진 ○장 — 어느 설치 장소(관리동·지사·본부·○○청 서버실 등)인가요?")을 준비한다. 주소 변환이 필요하면 동의 질문도 함께 준비한다.
@@ -64,7 +71,8 @@ description: TTMS 구축 현장 사진(입고·납품·설치 등)으로 사진�
 - 확신도가 낮거나 중복 의심인 사진, 라벨에 다른 사업명·터널명이 보이는 사진을 확인 질문에 넣는다.
 
 **C. 양식 루틴 — 양식 확인·값 JSON 뼈대** (사진과 무관)
-- 사진대지 양식 후보를 준비한다. 종류·이중화를 아직 모르면 네 양식(입고/납품 × 단일/`_dual`)의 토큰을 미리 확인해 두고, 3단계 답을 받은 뒤 하나로 정한다(사진 페이지 토큰은 넷이 같고, 표지 서버 표만 단일/이중화가 다르다). 플러그인에 들어 있는 양식: `templates/ttms_construction_project/` — 입고 `server_receiving_photo_sheet.hwpx`, 납품 `server_delivery_photo_sheet.hwpx`, 이중화면 각각 `_dual` 판. 사용자가 다른 양식 파일을 주면 그것을 쓴다.
+- 사진대지 양식 후보를 `templates.json`(별칭 `aliases`·용도 `when`·페이지 `pages`)에서 고른다. 찾는 순서는 `manage/SKILL.md` 4장을 따른다 — 사용자가 준 파일 → 개인 `~/.anjsolution/doc-template/`(templates.json·templates/) → 동봉 `templates/ttms_construction_project/templates.json`. 같은 이름이면 앞선 쪽이 우선이다.
+- 종류·이중화를 아직 모르면 후보 양식(예: 입고 `server_receiving_photo_sheet.hwpx`, 납품 `server_delivery_photo_sheet.hwpx`, 이중화면 각각 `_dual` 판)의 토큰을 미리 확인해 두고, 3단계 답을 받은 뒤 하나로 정한다(예시의 사진 페이지 토큰은 넷이 같고, 표지 서버 표만 단일/이중화가 다르다). 위 이름은 예시이며 개인 템플릿에 더 맞는 것이 있으면 그것을 쓴다.
 - `hwpx` 스킬의 `pages <서식>` 으로 반복할 사진 페이지 번호, 페이지당 사진 칸 수(예: 2장), 공통 키(공사명·위치·날짜 등)를 확인한다.
 - **이중화 여부**(서버 2대인지)는 맥락에 없으면 3단계 질문에 넣는다. B 가 Master/Slave 사진을 찾았으면 "이중화로 보입니다"를 기본값으로 제안한다. 이중화면 `_dual` 양식을 쓰고 표지 서버 표에 Master·Slave 두 대(`모델명-1`, `S/N-1`, `모델명-2`, `S/N-2`)를 채우며, 사진은 Master 세트 전부 → Slave 세트 전부 순서로 놓는다(`ttms_photo_doc_types` 의 이중화 터널 항목).
 - 양식의 `{{키}}` 중 맥락으로 아는 값(공사명 등)은 채우고, 모르는 것은 3단계 질문에 넣는다. 날짜를 촬영 시각으로 채우려면 그것도 질문에 넣는다. 방문 날짜가 여러 날이면 날짜를 페이지별로 넣을지 묻는다.
@@ -90,7 +98,7 @@ B 가 아직 끝나지 않았으면 A·C 질문을 먼저 묻고, B 결과는 �
 답을 반영해 양식을 하나로 정하고, 페이지별 사진 순서·설명 목록을 보여 준다(사진대지에 그대로 나가는 내용이다). 고칠 것이 없으면 5단계.
 
 ### 5. 채우기
-C 의 뼈대에 A 의 순서·장소와 B 의 설명을 넣어 값 JSON 을 완성하고, `hwpx` 스킬로 `fill`(hwpx) 또는 `export`(PDF)를 실행한다. 결과 요약(값 없음·경고)을 전한다.
+C 의 뼈대에 A 의 순서·장소와 B 의 설명을 넣어 값 JSON 을 완성한다. 값 JSON 은 **결과 파일 옆에 저장**하고(다시 만들거나 고칠 때 쓴다), 사진 경로는 **절대 경로**로 적는다. 그다음 `hwpx` 스킬로 `fill`(hwpx) 또는 `export`(PDF)를 실행한다. 결과 요약(값 없음·경고)을 전한다.
 
 ## 주의
 - **위치(GPS)는 민감 정보다.** 사용자가 요청하지 않으면 좌표를 사진대지·값 JSON 에 넣지 않는다. 사진대지의 `위치` 칸에는 사용자가 확인한 장소 이름을 쓴다.

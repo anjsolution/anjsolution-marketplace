@@ -5,16 +5,38 @@
 // 직접 쓴 키(name·when·aliases·추가 키, 페이지 role 등)는 건드리지 않고 pages[].fields·sha256·updated 만 고친다.
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawnSync } from 'node:child_process'
 
 const ENGINE = new URL('../../hwpx/scripts/lib/pages.mjs', import.meta.url)
+const HWPX_SCRIPTS = fileURLToPath(new URL('../../hwpx/scripts/', import.meta.url))
+const PLUGIN_ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const USAGE = '사용법: node template-meta.mjs sync <폴더|templates.json>\n       node template-meta.mjs add <templates.json> <hwpx 경로> [이름]'
 
 const jsonPathOf = (p) => (existsSync(p) && statSync(p).isDirectory() ? join(p, 'templates.json') : p)
 const load = (f) => (existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : { schema: 1, templates: {} })
 const save = (f, j) => writeFileSync(f, JSON.stringify(j, null, 2) + '\n', 'utf8')
 const today = () => new Date().toISOString().slice(0, 10)
+
+// hwpx 엔진이 쓰는 의존성이 없으면 hwpx.mjs 와 같은 방식으로 1회 설치한다. 실패하면 종료 코드 3.
+function ensureDeps() {
+  if (['jszip', '@xmldom/xmldom'].every((m) => existsSync(join(HWPX_SCRIPTS, 'node_modules', m)))) return true
+  console.error('[template-meta] hwpx 의존성이 없어 설치합니다 (1회)…')
+  const r = spawnSync('npm', ['install', '--omit=optional', '--no-audit', '--no-fund'], {
+    cwd: HWPX_SCRIPTS, stdio: ['ignore', 2, 2], shell: process.platform === 'win32',
+  })
+  if (r.status !== 0) {
+    console.error(`[template-meta] 의존성 설치 실패. 직접 실행하세요: cd "${HWPX_SCRIPTS}" && npm install --omit=optional`)
+    return false
+  }
+  return true
+}
+
+const insidePlugin = (p) => {
+  const rel = relative(PLUGIN_ROOT, resolve(p))
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
+}
 
 async function describe(file, entry) {
   const { listPages } = await import(ENGINE)
@@ -59,7 +81,7 @@ async function add(jsonFile, hwpx, name) {
   const f = jsonPathOf(jsonFile)
   const j = load(f)
   j.templates ||= {}
-  const key = name || basename(hwpx, extname(hwpx))
+  const key = name || basename(hwpx)
   const entry = j.templates[key] || { name: key, when: '' }
   entry.path = resolve(hwpx)
   j.templates[key] = await describe(entry.path, entry)
@@ -69,9 +91,16 @@ async function add(jsonFile, hwpx, name) {
 
 export async function main([cmd, a, b, c]) {
   try {
-    if (cmd === 'sync' && a) await sync(a)
-    else if (cmd === 'add' && a && b) {
+    if (cmd === 'sync' && a) {
+      if (!ensureDeps()) return 3
+      await sync(a)
+    } else if (cmd === 'add' && a && b) {
+      if (insidePlugin(jsonPathOf(a))) {
+        console.error('동봉 templates.json 에는 외부 경로를 등록하지 않습니다 — 개인 ~/.anjsolution/doc-template/templates.json 을 쓰세요')
+        return 2
+      }
       if (!existsSync(b)) { console.error(`파일이 없습니다: ${b}`); return 1 }
+      if (!ensureDeps()) return 3
       await add(a, b, c)
     } else { console.error(USAGE); return 2 }
     return 0

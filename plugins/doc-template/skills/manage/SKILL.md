@@ -57,7 +57,16 @@ TTMS 구축 전용 플러그인이 생기기 전까지 여기서 관리한다. �
 - 개인 템플릿을 회사 공용으로 쓰려면 저장소에 PR·이슈로 올리도록 안내한다.
 - **템플릿 메타 정보는 폴더마다 `templates.json` 하나**로 관리한다 — 템플릿별 이름·별칭(`aliases`)·용도(`when`)·업무 코드·가이드, 페이지별 `{{}}` 목록. 템플릿을 고를 때 이 파일을 먼저 읽는다(별칭·용도로 찾기). 필요한 키는 자유롭게 더해도 된다.
 - 다른 위치의 템플릿도 복사 없이 `path` 로 등록할 수 있다. 개인 등록 파일은 `~/.anjsolution/doc-template/templates.json` (절대 경로는 개인 파일에서만).
-- `scripts/template-meta.mjs sync <폴더|templates.json>` — 새 hwpx 추가·페이지·필드 갱신(직접 쓴 키는 보존, 없어진 파일은 `missing`). `add <templates.json> <hwpx> [이름]` — 다른 위치 파일 등록.
+- `templates.json` 의 `guide` 값은 **manage 스킬 폴더 기준 상대 경로**다.
+- 템플릿 메타 도구 `template-meta.mjs`:
+  ```bash
+  node "${CLAUDE_PLUGIN_ROOT}/skills/manage/scripts/template-meta.mjs" sync <폴더|templates.json>
+  node "${CLAUDE_PLUGIN_ROOT}/skills/manage/scripts/template-meta.mjs" add <templates.json> <hwpx 절대 경로> [이름]
+  ```
+  Codex 에서는 manage 스킬 폴더 기준 `scripts/template-meta.mjs` 로 실행한다.
+  - `sync` — 새 hwpx 추가·페이지·필드 갱신(직접 쓴 키는 보존, 없어진 파일은 `missing`).
+  - `add` — 다른 위치 파일 등록. 이름을 주지 않으면 확장자를 포함한 파일명(예: `cert.hwpx`)이 키가 된다(`sync` 와 같은 규칙). 동봉 `templates.json` 에는 등록하지 않는다(종료 코드 2) — 개인 `~/.anjsolution/doc-template/templates.json` 을 쓴다.
+  - hwpx 엔진을 쓰므로 첫 실행 때 hwpx 의존성을 자동 설치한다(실패하면 종료 코드 3).
 
 ## 공통 원칙
 - 원본 파일(사진·양식)은 읽기만 한다. 결과는 항상 새 파일이다.

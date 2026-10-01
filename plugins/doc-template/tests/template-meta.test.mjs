@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -56,6 +56,26 @@ test('add: 다른 위치 파일을 path 로 등록, 없어지면 missing 표시'
   run('sync', f)
   t = read(f).templates['증명서']
   assert.equal(t.missing, true); assert.equal(t.pages.length, 2)   // 마지막 정보는 남긴다
+})
+
+test('add: 이름을 주지 않으면 확장자를 포함한 파일명으로 등록 (sync 와 같은 키)', async () => {
+  const d = mkdtempSync(join(tmpdir(), 'tm-')); const other = mkdtempSync(join(tmpdir(), 'tm-o-'))
+  const ext = join(other, 'cert.hwpx'); writeFileSync(ext, await tpl())
+  const f = join(d, 'templates.json')
+  assert.equal(run('add', f, ext).status, 0)
+  assert.deepEqual(Object.keys(read(f).templates), ['cert.hwpx'])
+  run('sync', f)
+  assert.deepEqual(Object.keys(read(f).templates), ['cert.hwpx'])   // sync 가 중복 키를 만들지 않는다
+})
+
+test('add: 동봉 templates.json(플러그인 폴더 안)에는 외부 경로를 등록하지 않는다 (종료 코드 2)', async () => {
+  const other = mkdtempSync(join(tmpdir(), 'tm-o-'))
+  const ext = join(other, 'cert.hwpx'); writeFileSync(ext, await tpl())
+  const inside = fileURLToPath(new URL('../skills/manage/templates/zz_refuse_test/templates.json', import.meta.url))
+  const r = run('add', inside, ext)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /동봉 templates\.json/)
+  assert.equal(existsSync(inside), false)
 })
 
 test('사용법 오류는 종료 코드 2', () => {

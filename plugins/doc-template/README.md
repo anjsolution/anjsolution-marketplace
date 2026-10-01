@@ -1,6 +1,6 @@
 # doc-template
 
-저장된 문서 양식에 값을 채워 문서를 만들어 주는 플러그인이다. v0.1.0 은 한글 양식용 `hwpx` 스킬과 사진 분석·방문 기록용 `manage` 스킬을 제공한다.
+저장된 문서 양식에 값을 채워 문서를 만들어 주는 플러그인이다. v0.1.0 은 한글 양식용 `hwpx` 스킬과 템플릿 기반 문서 작성 진입점인 `manage` 스킬(사진 분석·방문 기록 모듈 포함)을 제공한다.
 `{{필드}}` 자리와 사진 자리에 값·사진을 채워 hwpx 와 PDF 를 만들고, 원본 페이지를 골라 반복할 수 있다(사진대지 등).
 
 ## 설치
@@ -31,7 +31,7 @@ node skills/hwpx/scripts/hwpx.mjs export <서식.hwpx> <값.json> -o <결과.pdf
 
 값 JSON 형식과 작업 순서는 `skills/hwpx/SKILL.md`, 규칙 상세는 `skills/hwpx/references/` 에 있다.
 
-## manage 스킬 — 플러그인 진입점
+## manage 스킬 — 템플릿 기반 문서 작성 진입점
 
 템플릿(양식)으로 문서를 만드는 요청을 먼저 받아, 어떤 템플릿과 절차를 쓸지 정하고 `hwpx` 스킬을 불러 문서를 만든다. 양식과 값이 이미 정해진 단순 채우기는 `hwpx` 스킬로 바로 간다. 구성은 `skills/manage/SKILL.md`.
 
@@ -47,7 +47,7 @@ node skills/hwpx/scripts/hwpx.mjs export <서식.hwpx> <값.json> -o <결과.pdf
 
 ### 문서 작성용 모듈
 
-사진대지 절차 안에서 부르는 기능이다(읽기 전용, 설치할 것 없음).
+사진대지 절차 안에서 부르는 기능이다(읽기 전용). 아래 두 스크립트는 설치할 것이 없다. 단, 템플릿 메타 도구 `template-meta.mjs` 는 hwpx 엔진을 쓰므로 첫 실행 때 hwpx 의존성을 자동 설치한다(인터넷 필요, 1회).
 
 ```bash
 # 사진 메타데이터 — 촬영 날짜·위치·크기·용량
@@ -70,7 +70,7 @@ node skills/manage/scripts/ttms_construction_project/photo-visits.mjs <사진 �
 ## 하지 않는 것
 
 원본 양식 수정, 사진 압축, 화면 미리보기, 표 행 단위 반복은 이번 버전에 없다.
-이미지 압축과 템플릿 관리(찾기·가져오기·값 기억)는 이후 `manage` 스킬에 더해진다.
+`manage` 스킬에 이후 더해질 것: 값 기억, 이미지 압축, 설치 장소 좌표 정리.
 
 ## 라이선스 고지
 
