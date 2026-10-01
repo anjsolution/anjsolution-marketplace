@@ -25,7 +25,9 @@ doc-template 플러그인으로 들어오는 요청은 먼저 여기서 받는�
 
 ## 3. TTMS 구축 자료 제작 (임시 — TTMS 구축 전용 플러그인으로 이전 예정)
 
-TTMS 구축 전용 플러그인이 생기기 전까지 여기서 관리한다. 관련 문서·스크립트·템플릿은 모두 `ttms_construction_project/` 폴더에 모아 두었고, 이전할 때 폴더째 옮긴다(`references/ttms_construction_project/README.md`).
+TTMS 구축 전용 플러그인이 생기기 전까지 여기서 관리한다. 관련 문서·스크립트·템플릿은 모두 `ttms_construction_project/` 폴더에 모아 두었고, 이전할 때 폴더째 옮긴다(`references/ttms_construction_project/README.md`). 자료 종류가 늘면 아래에 `3-2`, `3-3` … 으로 추가한다.
+
+### 3-1. 서버 입고(공장 검수)·자재 납품 사진대지
 
 **활용 가이드**
 - `references/ttms_construction_project/ttms_photo_doc_make.md` — **사진대지 만들기의 시작점.** 사진 분석·묶기·설명 → 템플릿 선택 → hwpx 스킬로 채우기. 이 문서만으로 바로 시작할 수 있다.
@@ -34,7 +36,7 @@ TTMS 구축 전용 플러그인이 생기기 전까지 여기서 관리한다. �
 
 **템플릿** (`templates/ttms_construction_project/`, 목록·입력 키는 폴더 안 `README.md`)
 - 서버 입고 사진대지 — 단일 / 이중화(`_dual`)
-- 서버 납품 사진대지 — 단일 / 이중화(`_dual`)
+- 자재 납품 사진대지 — 단일 / 이중화(`_dual`)
 
 **제공 예정**
 - 설치 장소(관리동·지사·본부·○○청 서버실 등) 등록·위치 검토·좌표/주소 채우기

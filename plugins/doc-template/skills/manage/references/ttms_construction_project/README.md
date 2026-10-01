@@ -7,11 +7,17 @@ TTMS 구축 전용 플러그인이 생기면 **두 폴더를 통째로 그쪽으
 
 ## 들어 있는 것
 
+자료 종류별로 묶는다. 새 종류가 생기면 `### 3-2.` 처럼 항목을 추가하고 문서 이름에 그 종류의 접두어를 붙인다(예: 사진대지는 `ttms_photo_doc_`). 번호는 manage `SKILL.md` 의 3장 번호와 맞춘다.
+
+### 3-1. 서버 입고(공장 검수)·자재 납품 사진대지 — `ttms_photo_doc_*`
+
 | 문서 | 하는 일 | 스크립트 |
 |---|---|---|
 | `ttms_photo_doc_location_data.md` | 현장 사진의 GPS·촬영 시각으로 방문(언제 어디에) 목록을 만들고 장소를 확인받는다 | `scripts/ttms_construction_project/photo-visits.mjs` |
 | `ttms_photo_doc_types.md` | 사진대지 종류(서버 입고·납품)별 장소, 필수 사진, 촬영 순서 — 업무 지식 | — |
 | `ttms_photo_doc_make.md` | 현장 사진으로 사진대지(입고·납품·설치 등)를 만든다. 사진 분석 → 묶기·설명 → hwpx 채우기, 설치 장소 위치 정보 정리(예정) | — (기존 스크립트 조합) |
+
+템플릿: `templates/ttms_construction_project/server_receiving_photo_sheet*.hwpx`, `server_delivery_photo_sheet*.hwpx`
 
 ## 옮길 때 체크리스트
 
